@@ -81,6 +81,7 @@
     border-radius: 50%; background: var(--gold);
   }
   .slider .val { font-size: 12px; color: var(--gold); font-weight: 700; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+  .hintline { font-size: 10.5px; color: var(--dim); padding: 2px 10px 0; }
 
   footer {
     flex-shrink: 0; padding: 10px 18px; border-top: 1px solid var(--line);
@@ -147,6 +148,11 @@
       <div><div class="txt">Karte aufgedeckt</div><div class="sub">Fog of War aus (Beobachter-Sicht)</div></div></label>
     <label class="row"><input type="checkbox" data-key="nativeMinimap">
       <div><div class="txt">Minimap</div></div></label>
+    <div class="slider">
+      <input type="range" id="minimap" min="30" max="150" step="5">
+      <span class="val" id="minimap-val">100 %</span>
+    </div>
+    <div class="hintline">Minimap-Größe greift ab dem nächsten Replay-Start.</div>
     <label class="row"><input type="checkbox" data-key="killCallouts">
       <div><div class="txt">Kill-Banner</div></div></label>
     <label class="row"><input type="checkbox" data-key="floatingText">

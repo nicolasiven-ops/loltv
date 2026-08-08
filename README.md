@@ -83,6 +83,12 @@ Zahnrad in der Titelleiste. Alles wirkt sofort und wird in
   Skalierung nach Fensterbreite.
 - **Optik des Spiels** (via Replay-API): Karte aufgedeckt (Fog of War),
   Minimap, Kill-Banner, Schadenszahlen.
+- **Minimap-Größe** (30–150 %): eigener Regler; wird relativ zur eigenen
+  League-Einstellung in die `game.cfg` geschrieben und greift ab dem
+  nächsten Replay-Start.
+
+Die Startansicht merkt sich außerdem die **zuletzt gesuchten Riot-IDs** und
+zeigt sie als anklickbare Chips unter dem Suchfeld.
 
 **Design-Vorschau ohne laufendes Spiel:** `overlay/overlay.html?mock=1` im
 Browser öffnen (zeigt Beispieldaten).

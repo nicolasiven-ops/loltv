@@ -77,6 +77,22 @@
   #btn-search:hover { filter: brightness(1.1); }
   #btn-search:disabled { opacity: 0.5; cursor: default; }
 
+  /* Zuletzt gesuchte Riot-IDs */
+  #recents { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; justify-content: center; }
+  .recent {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 8px 5px 11px; border-radius: 999px;
+    background: var(--bar); border: 1px solid var(--line);
+    font-size: 12px; color: #cfd6e2; cursor: pointer;
+  }
+  .recent:hover { border-color: var(--gold); color: var(--text); }
+  .recent .del {
+    width: 15px; height: 15px; border-radius: 50%; border: none;
+    background: transparent; color: var(--dim); font-size: 12px; line-height: 1;
+    cursor: pointer; font-family: inherit;
+  }
+  .recent .del:hover { background: rgba(255, 255, 255, 0.12); color: #ff8d84; }
+
   #search-status { margin-top: 14px; font-size: 13px; color: var(--dim); min-height: 18px; text-align: center; }
   #search-status.error { color: #ff8d84; }
 
@@ -179,6 +195,7 @@
         <input id="riot-id" placeholder="Riot-ID eingeben, z. B. Agurin#EUW" spellcheck="false">
         <button id="btn-search">Suchen</button>
       </div>
+      <div id="recents"></div>
       <div id="search-status"></div>
       <div id="results"></div>
     </div>

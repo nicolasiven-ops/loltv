@@ -30,20 +30,46 @@ function backupOnce(file) {
   }
 }
 
-function patchGameCfg(installDir, width, height) {
+// Wert aus der Originaldatei lesen (Backup, falls vorhanden) — so bezieht
+// sich die Minimap-Prozentzahl immer auf die echte Nutzer-Einstellung und
+// nicht auf einen bereits von uns geschriebenen Wert.
+function originalValue(installDir, key) {
+  const file = path.join(cfgDir(installDir), "game.cfg");
+  const source = fs.existsSync(file + ".loltv-bak") ? file + ".loltv-bak" : file;
+  try {
+    const hit = new RegExp(`^${key}=([^\\r\\n]*)`, "m").exec(fs.readFileSync(source, "utf8"));
+    return hit ? parseFloat(hit[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
+function patchGameCfg(installDir, width, height, opts) {
   const file = path.join(cfgDir(installDir), "game.cfg");
   if (!fs.existsSync(file)) return;
   backupOnce(file);
   let text = fs.readFileSync(file, "utf8");
-  const set = (key, value) => {
+  const set = (key, value, section = "General") => {
     // CRLF-sicher: nur den Wert bis zum Zeilenende ersetzen, \r erhalten.
     const re = new RegExp(`^${key}=[^\\r\\n]*`, "m");
     if (re.test(text)) text = text.replace(re, `${key}=${value}`);
-    else text = text.replace(/^\[General\]/m, `[General]\r\n${key}=${value}`);
+    else if (new RegExp(`^\\[${section}\\]`, "m").test(text)) {
+      text = text.replace(new RegExp(`^\\[${section}\\]`, "m"), `[${section}]\r\n${key}=${value}`);
+    } else {
+      text += `\r\n[${section}]\r\n${key}=${value}\r\n`;
+    }
   };
   set("Width", Math.round(width));
   set("Height", Math.round(height));
   set("WindowMode", 1);
+
+  // Minimap-Größe relativ zur Original-Einstellung (100 % = unverändert).
+  const pct = opts && opts.minimapScale;
+  if (pct && pct !== 100) {
+    const base = originalValue(installDir, "MinimapScale") ?? 0.55;
+    const scaled = Math.min(1, Math.max(0.05, base * (pct / 100)));
+    set("MinimapScale", scaled.toFixed(3), "HUD");
+  }
   fs.writeFileSync(file, text);
 }
 
@@ -73,8 +99,8 @@ function patchPersisted(installDir, width, height) {
   fs.writeFileSync(file, JSON.stringify(data, null, 4));
 }
 
-function applyStageResolution(installDir, width, height) {
-  patchGameCfg(installDir, width, height);
+function applyStageResolution(installDir, width, height, opts) {
+  patchGameCfg(installDir, width, height, opts);
   patchPersisted(installDir, width, height);
 }
 

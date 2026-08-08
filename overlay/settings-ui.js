@@ -22,6 +22,8 @@ function render(s) {
   }
   $("scale").value = s.hudScale;
   $("scale-val").textContent = `${s.hudScale} %`;
+  $("minimap").value = s.minimapScale;
+  $("minimap-val").textContent = `${s.minimapScale} %`;
 }
 
 for (const el of document.querySelectorAll(".layout")) {
@@ -43,8 +45,15 @@ $("scale").addEventListener("input", () => {
   apply({ hudScale: Number($("scale").value) });
 });
 
+$("minimap").addEventListener("input", () => {
+  $("minimap-val").textContent = `${$("minimap").value} %`;
+  apply({ minimapScale: Number($("minimap").value) });
+});
+
 $("reset").addEventListener("click", () => {
-  config.save(config.DEFAULTS);
+  // Suchverlauf ist keine Einstellung — der bleibt beim Zurücksetzen stehen.
+  const { recentAccounts } = config.load();
+  config.save({ ...config.DEFAULTS, recentAccounts });
   ipcRenderer.send("settings-changed");
   render(config.load());
 });

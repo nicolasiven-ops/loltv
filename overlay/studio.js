@@ -20,7 +20,10 @@ const HAS_NODE = typeof require === "function";
 const ipc = HAS_NODE ? require("electron").ipcRenderer : null;
 const lcu = HAS_NODE ? require("./lcu") : null;
 const gamecfg = HAS_NODE ? require("./gamecfg") : null;
+const config = HAS_NODE ? require("./config") : null;
 const log = HAS_NODE ? require("./logger").log : () => {};
+
+let settings = config ? config.load() : { minimapScale: 100, recentAccounts: [] };
 
 const $ = (id) => document.getElementById(id);
 
@@ -148,6 +151,42 @@ function searchStatus(msg, isError) {
   $("search-status").classList.toggle("error", Boolean(isError));
 }
 
+// ------------------------------------------------------- Zuletzt gesucht
+
+function renderRecents() {
+  const list = (settings.recentAccounts || []).slice(0, 8);
+  $("recents").innerHTML = list.map((id) => `
+    <div class="recent" data-id="${id}">
+      <span>${id}</span>
+      <button class="del" data-del="${id}" title="Entfernen">✕</button>
+    </div>`).join("");
+
+  for (const el of document.querySelectorAll(".recent")) {
+    el.addEventListener("click", (ev) => {
+      if (ev.target.dataset.del) return; // Klick auf ✕ nicht als Suche werten
+      $("riot-id").value = el.dataset.id;
+      searchPlayer();
+    });
+  }
+  for (const btn of document.querySelectorAll(".recent .del")) {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      saveRecents((settings.recentAccounts || []).filter((id) => id !== btn.dataset.del));
+    });
+  }
+}
+
+function saveRecents(list) {
+  settings.recentAccounts = list;
+  if (config) config.save({ recentAccounts: list });
+  renderRecents();
+}
+
+function rememberAccount(riotId) {
+  const list = [riotId, ...(settings.recentAccounts || []).filter((id) => id !== riotId)];
+  saveRecents(list.slice(0, 8));
+}
+
 async function searchPlayer() {
   const raw = $("riot-id").value.trim();
   const m = /^(.+?)\s*#\s*(\S+)$/.exec(raw);
@@ -161,6 +200,7 @@ async function searchPlayer() {
     const account = await lcu.request("GET",
       `/lol-summoner/v1/alias/lookup?gameName=${encodeURIComponent(m[1])}&tagLine=${encodeURIComponent(m[2])}`);
     if (!account || !account.puuid) throw new Error("not found");
+    rememberAccount(`${m[1]}#${m[2]}`);
 
     searchStatus("Lade Match-Historie …");
     const hist = await lcu.request("GET",
@@ -300,7 +340,9 @@ async function playReplay(btn, gameId, platformId) {
       const size = ipc ? await ipc.invoke("stage-size") : null;
       log("playReplay: installDir=", lcu.installDir(), "stage=", JSON.stringify(size));
       if (size && gamecfg && lcu.installDir()) {
-        gamecfg.applyStageResolution(lcu.installDir(), size.width, size.height);
+        gamecfg.applyStageResolution(lcu.installDir(), size.width, size.height, {
+          minimapScale: settings.minimapScale,
+        });
         log("playReplay: game.cfg + PersistedSettings gepatcht");
       }
     } catch (err) {
@@ -380,9 +422,14 @@ if (ipc) {
     $(id).addEventListener("click", () => ipc.send("win-control", action));
   }
   $("btn-settings").addEventListener("click", () => ipc.send("open-settings"));
+  ipc.on("settings-changed", () => {
+    settings = config.load();
+    renderRecents();
+  });
 }
 
 setStatus();
+renderRecents();
 loadDdragon();
 pollPlayback();
 setInterval(pollPlayback, POLL_MS);

@@ -4,12 +4,34 @@
 <meta charset="utf-8">
 <title>LoLTV Overlay</title>
 <style>
-  /* Transparenter Grund — das Spiel scheint durch. */
+  /* Transparenter Grund — das Spiel scheint durch. Die Panels sind bewusst
+     halbtransparent und rund gehalten, mit warmen Gold-Haarlinien statt
+     harter Kanten (LoL-/Fantasy-Anmutung statt Tech-Look). Kein
+     backdrop-filter: hinter dem transparenten Fenster liegt das Spiel als
+     eigenes Fenster, da gäbe es nichts zu blurren. */
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
+
+  :root {
+    --blue: #5aa9ff;
+    --blue-deep: #2f6fb5;
+    --red: #ff8175;
+    --red-deep: #b8443c;
+    --gold: #c8a45c;
+    --gold-soft: #e3cd9b;
+    --text: #eef1f6;
+    --dim: #98a1b0;
+
+    --glass: linear-gradient(180deg, rgba(13, 18, 27, 0.70) 0%, rgba(7, 10, 16, 0.80) 100%);
+    --hairline: rgba(255, 255, 255, 0.07);
+    --goldline: rgba(200, 164, 92, 0.38);
+    --shadow: 0 6px 22px rgba(0, 0, 0, 0.42);
+    --serif: "Constantia", Georgia, "Palatino Linotype", serif;
+  }
+
   body {
     font-family: "Segoe UI", system-ui, sans-serif;
-    color: #e8eaf0;
+    color: var(--text);
     -webkit-font-smoothing: antialiased;
     user-select: none;
   }
@@ -23,214 +45,272 @@
 
   .hidden { display: none !important; }
 
-  :root {
-    --blue: #2f7dd1;
-    --blue-bright: #55a7ff;
-    --red: #d64545;
-    --red-bright: #ff7a6e;
-    --panel: rgba(8, 10, 16, 0.86);
-    --panel-line: rgba(255, 255, 255, 0.09);
-    --gold: #c8a45c;
-    --dim: #9aa3b2;
+  /* Gemeinsame Glas-Fläche mit feiner Goldkante oben. */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow);
+    position: relative;
+  }
+  .glass::before {
+    content: ""; position: absolute; left: 12%; right: 12%; top: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--goldline), transparent);
   }
 
   /* ---------- Status-Chip (nicht verbunden) ---------- */
   #status {
-    position: fixed; top: 14px; left: 14px;
-    background: var(--panel);
-    border: 1px solid var(--panel-line);
-    border-left: 3px solid var(--gold);
-    padding: 8px 14px; border-radius: 4px;
-    font-size: 13px; letter-spacing: 0.4px;
+    position: fixed; top: 16px; left: 16px;
+    padding: 9px 16px; border-radius: 999px;
+    font-size: 12.5px; letter-spacing: 0.3px; color: var(--gold-soft);
+    background: var(--glass);
+    border: 1px solid var(--goldline);
+    box-shadow: var(--shadow);
   }
 
   /* ---------- Score-Bar oben Mitte ---------- */
   #scorebar {
     position: fixed; top: 0; left: 50%; transform: translateX(-50%);
     display: flex; align-items: stretch;
-    background: var(--panel);
-    border: 1px solid var(--panel-line); border-top: none;
-    border-radius: 0 0 8px 8px;
-    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+    border-radius: 0 0 16px 16px;
+    border-top: none;
+    overflow: hidden;
   }
+  #scorebar::before { left: 20%; right: 20%; }
+
   .sb-side {
-    display: flex; flex-direction: column; justify-content: center; gap: 5px;
-    padding: 8px 16px 7px;
+    display: flex; flex-direction: column; justify-content: center; gap: 4px;
+    padding: 9px 20px 10px;
+    position: relative;
   }
-  .sb-side.blue { border-bottom: 3px solid var(--blue); border-radius: 0 0 0 8px; align-items: flex-end; }
-  .sb-side.red  { border-bottom: 3px solid var(--red); border-radius: 0 0 8px 0; align-items: flex-start; }
-  .sb-row1 { display: flex; align-items: center; gap: 16px; }
+  /* Team-Farbe nur als weicher Schimmer an der Außenkante, keine harte Leiste. */
+  .sb-side::after {
+    content: ""; position: absolute; bottom: 0; height: 2px; left: 10px; right: 10px;
+    border-radius: 2px;
+  }
+  .sb-side.blue { align-items: flex-end; }
+  .sb-side.blue::after { background: linear-gradient(90deg, transparent, var(--blue-deep)); }
+  .sb-side.red { align-items: flex-start; }
+  .sb-side.red::after { background: linear-gradient(270deg, transparent, var(--red-deep)); }
+
+  .sb-row1 { display: flex; align-items: center; gap: 15px; }
   .red .sb-row1 { flex-direction: row-reverse; }
-  .sb-row2 { display: flex; align-items: center; gap: 10px; min-height: 15px; }
+  .sb-row2 { display: flex; align-items: center; gap: 9px; min-height: 13px; }
   .red .sb-row2 { flex-direction: row-reverse; }
 
-  .sb-obj { display: flex; align-items: center; gap: 5px; font-size: 15px; font-weight: 600; color: #cfd6e2; font-variant-numeric: tabular-nums; }
-  .sb-obj svg { width: 15px; height: 15px; fill: var(--dim); }
+  .sb-obj {
+    display: flex; align-items: center; gap: 5px;
+    font-family: var(--serif); font-size: 15px; color: #d8dee8;
+    font-variant-numeric: tabular-nums;
+  }
+  .sb-obj svg { width: 14px; height: 14px; fill: rgba(200, 164, 92, 0.75); }
 
   .no-gold .sb-gold { display: none; }
   .sb-gold { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
-  .sb-gold .val { font-size: 17px; font-weight: 700; color: #e8d9b6; font-variant-numeric: tabular-nums; }
-  .sb-golddiff { font-size: 10px; font-weight: 700; min-height: 12px; font-variant-numeric: tabular-nums; }
-
-  .drakes { display: flex; gap: 4px; align-items: center; }
-  .drake { width: 9px; height: 9px; transform: rotate(45deg); border-radius: 2px; }
-
-  /* Role-Quest-Slots (Datenquelle wird noch verdrahtet, s. loltv.log). */
-  .quests { display: flex; gap: 3px; }
-  .quest {
-    width: 13px; height: 13px; border-radius: 3px;
-    background: #1b202b; border: 1px solid rgba(255, 255, 255, 0.09);
+  .sb-gold .val {
+    font-family: var(--serif); font-size: 17px; color: var(--gold-soft);
+    font-variant-numeric: tabular-nums; letter-spacing: 0.3px;
   }
-  .quest.done { background: rgba(200, 164, 92, 0.55); border-color: var(--gold); }
-
-  /* ---------- Objective-Panel oben rechts (Buffs + Spawns) ---------- */
-  #objpanel {
-    position: fixed; top: 14px; right: 14px;
-    display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
-  }
-  .chip {
-    background: var(--panel); border: 1px solid var(--panel-line);
-    padding: 4px 11px; border-radius: 4px; white-space: nowrap;
-    font-size: 11px; font-weight: 700; letter-spacing: 1px;
-    font-variant-numeric: tabular-nums;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
-  }
-  .chip.baron { color: #c8a5ff; }
-  .chip.elder { color: #9fe8ff; }
-  .chip.spawn { color: var(--gold); }
-  .chip.blue { border-right: 3px solid var(--blue); }
-  .chip.red  { border-right: 3px solid var(--red); }
+  .sb-golddiff { font-size: 10px; min-height: 12px; font-variant-numeric: tabular-nums; }
 
   #clockbox {
     display: flex; flex-direction: column; justify-content: center; align-items: center;
-    padding: 6px 20px; min-width: 128px; gap: 2px;
-    border-left: 1px solid var(--panel-line);
-    border-right: 1px solid var(--panel-line);
+    padding: 7px 22px 9px; min-width: 132px; gap: 1px;
+    position: relative;
   }
-  #kills-line {
-    display: flex; align-items: center; gap: 10px;
-    font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1;
+  /* Zierliche Trennlinien mit Rauten statt harter Rahmen. */
+  #clockbox::before, #clockbox::after {
+    content: ""; position: absolute; top: 22%; bottom: 22%; width: 1px;
+    background: linear-gradient(180deg, transparent, var(--goldline), transparent);
   }
-  #kills-line .blue { color: var(--blue-bright); }
-  #kills-line .red { color: var(--red-bright); }
-  #kills-line .swords { font-size: 13px; color: var(--gold); }
-  #clock { font-size: 13px; font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
+  #clockbox::before { left: 0; }
+  #clockbox::after { right: 0; }
 
-  /* ---------- Spieler-Leiste unten Mitte (LPL-Stil) ---------- */
-  #bottomstrip {
-    /* leicht links der Mitte, damit die Minimap unten rechts Luft hat */
-    position: fixed; bottom: 0; left: 47%; transform: translateX(-50%);
-    display: flex; align-items: stretch;
-    background: var(--panel);
-    border: 1px solid var(--panel-line); border-bottom: none;
-    border-radius: 8px 8px 0 0;
-    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.45);
+  #kills-line {
+    display: flex; align-items: baseline; gap: 11px;
+    font-family: var(--serif); font-size: 27px; font-variant-numeric: tabular-nums; line-height: 1;
   }
+  #kills-line .blue { color: var(--blue); text-shadow: 0 0 14px rgba(90, 169, 255, 0.35); }
+  #kills-line .red { color: var(--red); text-shadow: 0 0 14px rgba(255, 129, 114, 0.35); }
+  #kills-line .swords {
+    font-size: 10px; color: var(--gold); transform: rotate(45deg);
+    width: 7px; height: 7px; background: var(--gold); border-radius: 1px;
+    align-self: center; opacity: 0.85;
+  }
+  #clock { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; letter-spacing: 1px; }
+
+  .drakes { display: flex; gap: 4px; align-items: center; }
+  .drake {
+    width: 8px; height: 8px; transform: rotate(45deg); border-radius: 2px;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+  }
+
+  .quests { display: flex; gap: 3px; }
+  .quest {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .quest.done {
+    background: radial-gradient(circle, var(--gold-soft), var(--gold));
+    border-color: var(--gold-soft);
+  }
+
+  /* ---------- Objective-Panel oben rechts ---------- */
+  #objpanel {
+    position: fixed; top: 16px; right: 16px;
+    display: flex; flex-direction: column; gap: 7px; align-items: flex-end;
+  }
+  .chip {
+    padding: 5px 13px; border-radius: 999px; white-space: nowrap;
+    font-family: var(--serif); font-size: 12px; letter-spacing: 1.2px;
+    font-variant-numeric: tabular-nums;
+    background: var(--glass);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow);
+  }
+  .chip.baron { color: #cbb0ff; border-color: rgba(150, 110, 230, 0.45); }
+  .chip.elder { color: #a6e9ff; border-color: rgba(90, 190, 230, 0.45); }
+  .chip.spawn { color: var(--gold-soft); border-color: var(--goldline); }
+  .chip.blue { box-shadow: var(--shadow), inset -3px 0 0 -1px var(--blue-deep); }
+  .chip.red  { box-shadow: var(--shadow), inset -3px 0 0 -1px var(--red-deep); }
+
+  /* ---------- Spieler-Kacheln ---------- */
+  #bottomstrip {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: stretch;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+  }
+
   .squad { display: flex; }
 
   #divider {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 0 10px; gap: 6px;
-    border-left: 1px solid var(--panel-line);
-    border-right: 1px solid var(--panel-line);
+    padding: 0 11px; gap: 5px; position: relative;
   }
+  #divider::before, #divider::after {
+    content: ""; position: absolute; top: 18%; bottom: 18%; width: 1px;
+    background: linear-gradient(180deg, transparent, var(--goldline), transparent);
+  }
+  #divider::before { left: 0; }
+  #divider::after { right: 0; }
   #divider .diamond {
-    width: 10px; height: 10px; transform: rotate(45deg);
-    background: var(--gold); border-radius: 2px;
+    width: 8px; height: 8px; transform: rotate(45deg); border-radius: 1px;
+    background: linear-gradient(135deg, var(--gold-soft), var(--gold));
   }
   #divider .mark {
-    font-size: 8px; letter-spacing: 2px; color: var(--dim); font-weight: 700;
+    font-family: var(--serif); font-size: 8px; letter-spacing: 2px; color: rgba(200, 164, 92, 0.7);
     writing-mode: vertical-rl; text-orientation: upright;
   }
 
   .tile {
-    width: 104px; padding: 8px 7px 6px;
+    width: 96px; padding: 9px 7px 7px;
     display: flex; flex-direction: column; align-items: center;
+    position: relative;
   }
-  .layout-bottom .squad.blue .tile { border-bottom: 3px solid var(--blue); }
-  .layout-bottom .squad.red  .tile { border-bottom: 3px solid var(--red); }
-  .layout-bottom .squad .tile + .tile { border-left: 1px solid rgba(255, 255, 255, 0.05); }
+  /* Team-Farbe als weicher Verlauf an der Unterkante statt dicker Balken. */
+  .layout-bottom .tile::after {
+    content: ""; position: absolute; left: 12%; right: 12%; bottom: 0; height: 2px; border-radius: 2px;
+  }
+  .layout-bottom .squad.blue .tile::after { background: linear-gradient(90deg, transparent, var(--blue-deep), transparent); }
+  .layout-bottom .squad.red  .tile::after { background: linear-gradient(90deg, transparent, var(--red-deep), transparent); }
+  .layout-bottom .squad .tile + .tile::before {
+    content: ""; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+  }
 
-  .tile-top { display: flex; gap: 5px; align-items: flex-start; }
+  .tile-top { display: flex; gap: 6px; align-items: center; }
 
-  .tile-items { display: grid; grid-template-columns: repeat(2, 17px); gap: 2px; }
+  .tile-items { display: grid; grid-template-columns: repeat(2, 15px); gap: 2px; }
   .item {
-    width: 17px; height: 17px; border-radius: 3px;
-    background: #1b202b; border: 1px solid rgba(255, 255, 255, 0.07);
+    width: 15px; height: 15px; border-radius: 3px;
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     overflow: hidden;
   }
   .item img { width: 100%; height: 100%; }
 
-  .portrait-wrap { position: relative; }
+  /* Rundes Portrait mit Goldring — das LoL-typische Champion-Emblem. */
+  .portrait-wrap { position: relative; flex-shrink: 0; }
   .portrait {
-    width: 58px; height: 58px; border-radius: 4px;
-    background: linear-gradient(135deg, #2a3242, #171c26);
+    width: 44px; height: 44px; border-radius: 50%; overflow: hidden;
+    background: radial-gradient(circle at 40% 30%, #2c3546, #12171f);
     display: flex; align-items: center; justify-content: center;
-    font-size: 24px; font-weight: 700; color: #6b7686;
-    overflow: hidden;
+    font-family: var(--serif); font-size: 18px; color: #77839a;
+    box-shadow: 0 0 0 1px rgba(200, 164, 92, 0.5), 0 2px 8px rgba(0, 0, 0, 0.5);
   }
   .portrait img { width: 100%; height: 100%; object-fit: cover; }
-  .tile.dead .portrait { filter: grayscale(1) brightness(0.45); }
+  .tile.dead .portrait { filter: grayscale(1) brightness(0.42); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12); }
   .respawn {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
-    font-size: 21px; font-weight: 700; color: #ff9d94;
-    text-shadow: 0 1px 4px #000;
+    font-family: var(--serif); font-size: 18px; color: #ffb3ab;
+    text-shadow: 0 1px 5px #000;
   }
   .level {
-    position: absolute; bottom: -5px; right: -5px;
-    background: #10141c; border: 1px solid var(--gold); color: var(--gold);
-    font-size: 10px; font-weight: 700;
-    min-width: 18px; height: 18px; border-radius: 9px;
+    position: absolute; bottom: -2px; right: -3px;
+    background: radial-gradient(circle at 35% 30%, #1b212c, #0b0e14);
+    border: 1px solid var(--goldline); color: var(--gold-soft);
+    font-family: var(--serif); font-size: 10px;
+    min-width: 17px; height: 17px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    padding: 0 2px;
   }
 
   .tile-name {
-    margin-top: 6px; max-width: 96px;
-    font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+    margin-top: 7px; max-width: 92px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.2px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .tile-stats {
-    display: flex; gap: 7px; margin-top: 2px;
-    font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap;
+    display: flex; gap: 7px; margin-top: 3px;
+    font-size: 10.5px; font-variant-numeric: tabular-nums; white-space: nowrap;
+    color: #cbd2dd;
   }
-  .kda { font-weight: 700; }
-  .kda .d { color: var(--red-bright); }
-  .cs { color: var(--gold); }
+  .kda .d { color: var(--red); }
+  .cs { color: rgba(200, 164, 92, 0.85); }
 
   /* ---------- Layout „Seiten“ (LCK-Stil) ---------- */
-  /* Gleiches DOM wie unten, nur andere Anordnung: zwei Spalten an den
-     Bildschirmrändern, Kachel-Inhalt zeilenweise, Name über dem Portrait. */
+  /* Gleiches DOM, andere Anordnung: schmale Karten an den Rändern. */
   .layout-sides #bottomstrip {
     top: 50%; bottom: auto; left: 0; right: 0;
     transform: translateY(-50%);
     justify-content: space-between;
-    background: transparent; border: none; box-shadow: none; border-radius: 0;
+    background: none; border: none; box-shadow: none; border-radius: 0;
   }
+  .layout-sides #bottomstrip::before { display: none; }
   .layout-sides #divider { display: none; }
-  .layout-sides .squad { flex-direction: column; gap: 6px; }
+  .layout-sides .squad { flex-direction: column; gap: 7px; }
 
   .layout-sides .tile {
-    width: 226px; padding: 7px 10px;
+    width: 194px; padding: 7px 11px 8px;
     align-items: flex-start;
-    background: var(--panel);
-    border: 1px solid var(--panel-line);
+    background: var(--glass);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow);
+    border-radius: 0 14px 14px 0;
   }
-  .layout-sides .squad.blue .tile { border-left: 3px solid var(--blue); border-radius: 0 7px 7px 0; }
-  .layout-sides .squad.red  .tile { border-right: 3px solid var(--red); border-radius: 7px 0 0 7px; align-items: flex-end; }
+  .layout-sides .squad.red .tile { align-items: flex-end; border-radius: 14px 0 0 14px; }
+  /* Team-Farbe als schmaler Verlauf an der Innenkante. */
+  .layout-sides .tile::after {
+    content: ""; position: absolute; top: 16%; bottom: 16%; width: 2px; border-radius: 2px;
+  }
+  .layout-sides .squad.blue .tile::after { left: 0; background: linear-gradient(180deg, transparent, var(--blue-deep), transparent); }
+  .layout-sides .squad.red  .tile::after { right: 0; background: linear-gradient(180deg, transparent, var(--red-deep), transparent); }
 
-  .layout-sides .tile-name { order: -1; margin: 0 0 5px; max-width: 100%; font-size: 12px; }
-  .layout-sides .tile-top { align-items: center; }
-  .layout-sides .squad.red .tile-top { flex-direction: row-reverse; }
-  .layout-sides .tile-items { grid-template-columns: repeat(4, 17px); }
-  .layout-sides .tile-stats { margin-top: 4px; font-size: 12px; }
+  .layout-sides .tile-name {
+    order: -1; margin: 0 0 5px; max-width: 100%;
+    font-family: var(--serif); font-size: 12.5px; letter-spacing: 0.4px;
+  }
+  /* Portraits sitzen außen (Bildschirmrand), Items zeigen nach innen. */
+  .layout-sides .squad.blue .tile-top { flex-direction: row-reverse; }
+  .layout-sides .tile-items { grid-template-columns: repeat(4, 15px); }
+  .layout-sides .tile-stats { margin-top: 5px; font-size: 11px; }
 </style>
 </head>
 <body>
-  <div id="status">LoLTV Overlay — warte auf Replay-Client …</div>
+  <div id="status">LoLTV — warte auf Replay-Client …</div>
 
-  <div id="scorebar" class="hidden">
+  <div id="scorebar" class="glass hidden">
     <div class="sb-side blue">
       <div class="sb-row1">
         <div class="sb-obj" title="Türme"><svg viewBox="0 0 16 16"><path d="M4 15V7L3 6V3h2v1h2V3h2v1h2V3h2v3l-1 1v8z"/></svg><span id="towers-blue">0</span></div>
@@ -247,7 +327,7 @@
     <div id="clockbox">
       <div id="kills-line">
         <span class="blue" id="kills-blue">0</span>
-        <span class="swords">⚔</span>
+        <span class="swords"></span>
         <span class="red" id="kills-red">0</span>
       </div>
       <div id="clock">0:00</div>
@@ -269,7 +349,7 @@
 
   <div id="objpanel" class="hidden"></div>
 
-  <div id="bottomstrip" class="hidden">
+  <div id="bottomstrip" class="glass hidden">
     <div id="squad-blue" class="squad blue"></div>
     <div id="divider">
       <div class="diamond"></div>
