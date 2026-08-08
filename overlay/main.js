@@ -30,6 +30,7 @@ const FULLSCREEN_MODE = process.argv.includes("--fullscreen-overlay");
 let studio = null;
 let hud = null;
 let gameHwnd = 0n;
+let fullscreenBlocked = false; // Replay läuft im Vollbild → nicht andockbar
 // Wird vom Studio-Renderer gemeldet (IPC "replay-api"): antwortet die
 // Replay-API auf Port 2999? Nur dann ist das Spielfenster ein Replay —
 // ein Live-Game (gleicher Fenstertitel!) darf nie angedockt werden.
@@ -63,8 +64,24 @@ function layout() {
 
 function sendStatus() {
   if (studio && !studio.isDestroyed()) {
-    studio.webContents.send("embed-status", { embedded: gameHwnd !== 0n });
+    studio.webContents.send("embed-status", {
+      embedded: gameHwnd !== 0n,
+      fullscreenBlocked,
+    });
   }
+}
+
+// Deckt das Fenster einen kompletten Monitor ab? Dann läuft das Spiel im
+// Vollbild/randlosen Vollbild — Andocken würde nur einen Glitch-Kampf mit
+// dem Spiel auslösen (Vollbild-Reassert vs. SetWindowPos).
+function coversADisplay(rect) {
+  if (!rect) return false;
+  for (const d of screen.getAllDisplays()) {
+    const w = Math.round(d.bounds.width * d.scaleFactor);
+    const h = Math.round(d.bounds.height * d.scaleFactor);
+    if (rect.width >= w - 2 && rect.height >= h - 2) return true;
+  }
+  return false;
 }
 
 // Spielfenster suchen und andocken; Verlust (Replay beendet) erkennen.
@@ -79,6 +96,17 @@ function embedTick() {
   if (!gameHwnd && replayApiUp) {
     const found = embed.findGame();
     if (found) {
+      // Vollbild nie andocken — nur Fenster (WindowMode=1) sind dockbar.
+      // Der Nutzer bekommt im Studio den Hinweis, im ESC-Menü auf
+      // „Fenster“ zu stellen; sobald das passiert, dockt der nächste Tick.
+      if (coversADisplay(embed.windowRect(found))) {
+        if (!fullscreenBlocked) {
+          fullscreenBlocked = true;
+          sendStatus();
+        }
+        return;
+      }
+      fullscreenBlocked = false;
       const host = studio.getNativeWindowHandle().readBigUInt64LE(0);
       embed.attach(found, host);
       gameHwnd = found;
@@ -90,6 +118,9 @@ function embedTick() {
       layout();
       sendStatus();
     }
+  } else if (fullscreenBlocked && !replayApiUp) {
+    fullscreenBlocked = false;
+    sendStatus();
   }
 }
 

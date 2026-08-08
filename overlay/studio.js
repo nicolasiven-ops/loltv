@@ -31,6 +31,7 @@ const QUEUES = {
 
 let apiConnected = false;
 let gameEmbedded = false;
+let fullscreenBlocked = false; // Replay läuft im Vollbild → nicht andockbar
 let seeking = false;
 let gameflowPhase = "None"; // Phase des League-Clients (ChampSelect, InProgress …)
 let currentPatch = null;   // z. B. "15.16" (vom Client)
@@ -48,7 +49,9 @@ function fmtClock(seconds) {
 function setStatus() {
   const el = $("embed-status");
   if (gameEmbedded) el.textContent = "Replay eingebettet ✔";
-  else if (apiConnected) el.textContent = "Replay läuft — Fenster wird angedockt …";
+  else if (fullscreenBlocked) {
+    el.textContent = "⚠ Replay läuft im Vollbild — im Replay ESC → Video → Fenstermodus „Fenster“ wählen, dann dockt es an";
+  } else if (apiConnected) el.textContent = "Replay läuft — Fenster wird angedockt …";
   else if (lcu && lcu.connected()) el.textContent = "Bereit — Spieler suchen oder Replay starten";
   else el.textContent = "Warte auf League-Client …";
   $("searchview").style.display = gameEmbedded ? "none" : "";
@@ -350,9 +353,10 @@ $("riot-id").addEventListener("keydown", (ev) => {
 });
 
 if (ipc) {
-  ipc.on("embed-status", (_ev, { embedded }) => {
+  ipc.on("embed-status", (_ev, { embedded, fullscreenBlocked: fsb }) => {
     const was = gameEmbedded;
     gameEmbedded = embedded;
+    fullscreenBlocked = Boolean(fsb);
     setStatus();
     // Replay beendet → Original-game.cfg zurückschreiben. Kurz warten,
     // weil der Replay-Client beim Beenden selbst noch in die Datei schreibt.

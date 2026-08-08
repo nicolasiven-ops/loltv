@@ -29,6 +29,7 @@ const SWP_FRAMECHANGED = 0x0020;
 const SWP_SHOWWINDOW = 0x0040;
 
 let fns = null;
+let RECT = null;
 let saved = null; // { hwnd, style, owner } — Zustand vor dem Docking
 
 function available() {
@@ -40,7 +41,12 @@ function init() {
   if (fns) return true;
   const koffi = require("koffi");
   const user32 = koffi.load("user32.dll");
+  RECT = koffi.struct("RECT", {
+    left: "int32_t", top: "int32_t", right: "int32_t", bottom: "int32_t",
+  });
   fns = {
+    GetWindowRect: user32.func("GetWindowRect", "bool",
+      ["uint64_t", koffi.out(koffi.pointer(RECT))]),
     FindWindowW: user32.func("FindWindowW", "uint64_t", ["str16", "str16"]),
     IsWindow: user32.func("IsWindow", "bool", ["uint64_t"]),
     GetWindowLongW: user32.func("GetWindowLongW", "int32_t", ["uint64_t", "int32_t"]),
@@ -87,6 +93,17 @@ function foreground() {
   return init() ? BigInt(fns.GetForegroundWindow()) : 0n;
 }
 
+// Fenster-Rechteck in physischen Bildschirm-Pixeln (oder null).
+function windowRect(hwnd) {
+  if (!isAlive(hwnd)) return null;
+  const out = {};
+  if (!fns.GetWindowRect(hwnd, out)) return null;
+  return {
+    x: out.left, y: out.top,
+    width: out.right - out.left, height: out.bottom - out.top,
+  };
+}
+
 // Rahmen entfernen und ans Studio-Fenster hängen (Owner, kein Parent!).
 function attach(gameHwnd, ownerHwnd) {
   const style = fns.GetWindowLongW(gameHwnd, GWL_STYLE);
@@ -116,6 +133,6 @@ function detach() {
 }
 
 module.exports = {
-  available, findGame, isAlive, foreground,
+  available, findGame, isAlive, foreground, windowRect,
   attach, moveToScreen, closeWindow, releaseCursorClip, detach,
 };
