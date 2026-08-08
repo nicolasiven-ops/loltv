@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>LoLTV — Einstellungen</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0a0d13; --bar: #10141c; --line: rgba(255, 255, 255, 0.08);
+    --gold: #c8a45c; --dim: #8b94a5; --text: #e8eaf0;
+    --blue: #2f7dd1;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    display: flex; flex-direction: column;
+    user-select: none; overflow: hidden;
+  }
+
+  #topbar {
+    height: 42px; flex-shrink: 0; display: flex; align-items: center;
+    padding-left: 16px; background: var(--bar);
+    border-bottom: 1px solid var(--line);
+    -webkit-app-region: drag;
+  }
+  #topbar .title { font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--gold); }
+  #btn-close {
+    margin-left: auto; width: 44px; height: 100%; border: none;
+    background: transparent; color: var(--dim); font-size: 13px; cursor: pointer;
+    -webkit-app-region: no-drag; font-family: inherit;
+  }
+  #btn-close:hover { background: #c0392b; color: #fff; }
+
+  main { flex: 1; overflow-y: auto; padding: 16px 18px 22px; }
+  main::-webkit-scrollbar { width: 8px; }
+  main::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+
+  h2 {
+    font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--dim);
+    text-transform: uppercase; margin: 18px 0 8px;
+  }
+  h2:first-child { margin-top: 0; }
+
+  /* Layout-Auswahl mit Mini-Vorschau */
+  .layouts { display: flex; gap: 10px; }
+  .layout {
+    flex: 1; min-width: 0; padding: 10px; border-radius: 7px; cursor: pointer;
+    background: var(--bar); border: 1px solid var(--line); text-align: center;
+  }
+  .layout:hover { border-color: rgba(255, 255, 255, 0.22); }
+  .layout.active { border-color: var(--gold); background: rgba(200, 164, 92, 0.09); }
+  .layout .name { font-size: 12px; font-weight: 700; margin-top: 8px; }
+  .layout .hint { font-size: 10px; color: var(--dim); margin-top: 2px; }
+  .preview {
+    height: 62px; border-radius: 4px; position: relative;
+    background: #070a0f; border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .preview i { position: absolute; background: #3c4657; border-radius: 1px; display: block; }
+  .preview .bar { top: 4px; left: 50%; transform: translateX(-50%); width: 34px; height: 6px; background: #4a5568; }
+  .preview.bottom i.p { bottom: 5px; width: 7px; height: 12px; }
+  .preview.sides i.p { width: 14px; height: 7px; }
+
+  label.row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 6px; cursor: pointer;
+    background: var(--bar); border: 1px solid var(--line); margin-bottom: 6px;
+  }
+  label.row:hover { border-color: rgba(255, 255, 255, 0.2); }
+  label.row input { accent-color: var(--gold); width: 15px; height: 15px; cursor: pointer; }
+  label.row .txt { font-size: 13px; }
+  label.row .sub { font-size: 11px; color: var(--dim); margin-top: 1px; }
+
+  .slider { display: flex; align-items: center; gap: 12px; padding: 4px 10px; }
+  .slider input {
+    flex: 1; -webkit-appearance: none; height: 5px; border-radius: 3px;
+    background: rgba(255, 255, 255, 0.14); outline: none; cursor: pointer;
+  }
+  .slider input::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 15px; height: 15px;
+    border-radius: 50%; background: var(--gold);
+  }
+  .slider .val { font-size: 12px; color: var(--gold); font-weight: 700; min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  footer {
+    flex-shrink: 0; padding: 10px 18px; border-top: 1px solid var(--line);
+    background: var(--bar); display: flex; align-items: center; gap: 12px;
+  }
+  #reset {
+    background: transparent; border: 1px solid var(--line); color: var(--dim);
+    padding: 7px 14px; border-radius: 5px; font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+  #reset:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.25); }
+  footer .note { font-size: 11px; color: var(--dim); margin-left: auto; }
+</style>
+</head>
+<body>
+  <div id="topbar">
+    <div class="title">EINSTELLUNGEN</div>
+    <button id="btn-close" title="Schließen">✕</button>
+  </div>
+
+  <main>
+    <h2>Spieler-Anzeige</h2>
+    <div class="layouts">
+      <div class="layout" data-layout="bottom">
+        <div class="preview bottom">
+          <i class="bar"></i>
+          <i class="p" style="left:22%"></i><i class="p" style="left:30%"></i>
+          <i class="p" style="left:38%"></i><i class="p" style="left:46%"></i>
+          <i class="p" style="left:54%"></i><i class="p" style="left:64%"></i>
+        </div>
+        <div class="name">Unten</div>
+        <div class="hint">LPL-Stil</div>
+      </div>
+      <div class="layout" data-layout="sides">
+        <div class="preview sides">
+          <i class="bar"></i>
+          <i class="p" style="left:5%;top:16px"></i><i class="p" style="left:5%;top:26px"></i>
+          <i class="p" style="left:5%;top:36px"></i><i class="p" style="left:5%;top:46px"></i>
+          <i class="p" style="right:5%;top:16px"></i><i class="p" style="right:5%;top:26px"></i>
+          <i class="p" style="right:5%;top:36px"></i><i class="p" style="right:5%;top:46px"></i>
+        </div>
+        <div class="name">Seiten</div>
+        <div class="hint">LCK-Stil</div>
+      </div>
+    </div>
+
+    <h2>HUD-Elemente</h2>
+    <label class="row"><input type="checkbox" data-key="showScorebar">
+      <div><div class="txt">Score-Bar oben</div><div class="sub">Kills, Türme, Gold, Drachen</div></div></label>
+    <label class="row"><input type="checkbox" data-key="showObjectives">
+      <div><div class="txt">Objective-Timer oben rechts</div><div class="sub">Baron-/Elder-Buffs und Spawns</div></div></label>
+    <label class="row"><input type="checkbox" data-key="showGold">
+      <div><div class="txt">Gold anzeigen</div><div class="sub">Schätzwert aus CS, Kills und Spielzeit</div></div></label>
+    <label class="row"><input type="checkbox" data-key="showItems">
+      <div><div class="txt">Items in den Kacheln</div></div></label>
+
+    <h2>HUD-Größe</h2>
+    <div class="slider">
+      <input type="range" id="scale" min="60" max="150" step="5">
+      <span class="val" id="scale-val">100 %</span>
+    </div>
+
+    <h2>Optik des Spiels</h2>
+    <label class="row"><input type="checkbox" data-key="fogOfWar" data-invert="1">
+      <div><div class="txt">Karte aufgedeckt</div><div class="sub">Fog of War aus (Beobachter-Sicht)</div></div></label>
+    <label class="row"><input type="checkbox" data-key="nativeMinimap">
+      <div><div class="txt">Minimap</div></div></label>
+    <label class="row"><input type="checkbox" data-key="killCallouts">
+      <div><div class="txt">Kill-Banner</div></div></label>
+    <label class="row"><input type="checkbox" data-key="floatingText">
+      <div><div class="txt">Schadenszahlen</div></div></label>
+  </main>
+
+  <footer>
+    <button id="reset">Zurücksetzen</button>
+    <span class="note">Änderungen wirken sofort</span>
+  </footer>
+
+  <script src="settings-ui.js"></script>
+</body>
+</html>

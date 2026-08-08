@@ -70,6 +70,20 @@ Beenden wird das Spielfenster wieder als normales Fenster ausgehängt.
 **Alternativmodus** (wie früher, ohne Einbettung): `npm run fullscreen` legt
 das HUD als transparentes Vollbild-Overlay über den ganzen Bildschirm.
 
+### Einstellungen
+
+Zahnrad in der Titelleiste. Alles wirkt sofort und wird in
+`overlay/settings.json` gespeichert:
+
+- **Spieler-Anzeige:** *Unten* (LPL-Stil, Leiste unten Mitte) oder *Seiten*
+  (LCK-Stil, Spalten links und rechts).
+- **HUD-Elemente:** Score-Bar, Objective-Timer, Gold-Anzeige und Items in den
+  Kacheln einzeln an-/abschaltbar.
+- **HUD-Größe:** Feinjustierung 60–150 % zusätzlich zur automatischen
+  Skalierung nach Fensterbreite.
+- **Optik des Spiels** (via Replay-API): Karte aufgedeckt (Fog of War),
+  Minimap, Kill-Banner, Schadenszahlen.
+
 **Design-Vorschau ohne laufendes Spiel:** `overlay/overlay.html?mock=1` im
 Browser öffnen (zeigt Beispieldaten).
 

@@ -30,6 +30,7 @@ const FULLSCREEN_MODE = process.argv.includes("--fullscreen-overlay");
 
 let studio = null;
 let hud = null;
+let settingsWin = null;
 let gameHwnd = 0n;
 let fullscreenBlocked = false; // Replay läuft im Vollbild → nicht andockbar
 // Wird vom Studio-Renderer gemeldet (IPC "replay-api"): antwortet die
@@ -282,6 +283,40 @@ ipcMain.on("gameflow-phase", (_ev, phase) => {
     if (studio && !studio.isDestroyed()) {
       studio.webContents.send("replay-autoclosed");
     }
+  }
+});
+
+// Einstellungen laufen in einem eigenen Fenster: Das eingebettete Spiel ist
+// ein natives Kind-Fenster und übermalt jedes HTML in der Studio-Bühne — ein
+// Panel im Studio wäre hinter dem Replay unsichtbar.
+function openSettings() {
+  if (settingsWin && !settingsWin.isDestroyed()) {
+    settingsWin.focus();
+    return;
+  }
+  settingsWin = new BrowserWindow({
+    width: 520,
+    height: 720,
+    parent: studio,
+    modal: false,
+    frame: false,
+    resizable: false,
+    backgroundColor: "#0a0d13",
+    webPreferences: { nodeIntegration: true, contextIsolation: false },
+  });
+  settingsWin.loadFile("settings.html");
+  settingsWin.on("closed", () => { settingsWin = null; });
+}
+
+ipcMain.on("open-settings", openSettings);
+ipcMain.on("close-settings", () => {
+  if (settingsWin && !settingsWin.isDestroyed()) settingsWin.close();
+});
+
+// Geänderte Einstellungen an alle Fenster verteilen.
+ipcMain.on("settings-changed", () => {
+  for (const win of [hud, studio]) {
+    if (win && !win.isDestroyed()) win.webContents.send("settings-changed");
   }
 });
 

@@ -6,3 +6,4 @@ dist/
 .venv/
 node_modules/
 overlay/loltv.log
+overlay/settings.json

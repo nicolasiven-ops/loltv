@@ -67,6 +67,7 @@
   .sb-obj { display: flex; align-items: center; gap: 5px; font-size: 15px; font-weight: 600; color: #cfd6e2; font-variant-numeric: tabular-nums; }
   .sb-obj svg { width: 15px; height: 15px; fill: var(--dim); }
 
+  .no-gold .sb-gold { display: none; }
   .sb-gold { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
   .sb-gold .val { font-size: 17px; font-weight: 700; color: #e8d9b6; font-variant-numeric: tabular-nums; }
   .sb-golddiff { font-size: 10px; font-weight: 700; min-height: 12px; font-variant-numeric: tabular-nums; }
@@ -146,9 +147,9 @@
     width: 104px; padding: 8px 7px 6px;
     display: flex; flex-direction: column; align-items: center;
   }
-  .squad.blue .tile { border-bottom: 3px solid var(--blue); }
-  .squad.red  .tile { border-bottom: 3px solid var(--red); }
-  .squad .tile + .tile { border-left: 1px solid rgba(255, 255, 255, 0.05); }
+  .layout-bottom .squad.blue .tile { border-bottom: 3px solid var(--blue); }
+  .layout-bottom .squad.red  .tile { border-bottom: 3px solid var(--red); }
+  .layout-bottom .squad .tile + .tile { border-left: 1px solid rgba(255, 255, 255, 0.05); }
 
   .tile-top { display: flex; gap: 5px; align-items: flex-start; }
 
@@ -197,6 +198,33 @@
   .kda { font-weight: 700; }
   .kda .d { color: var(--red-bright); }
   .cs { color: var(--gold); }
+
+  /* ---------- Layout „Seiten“ (LCK-Stil) ---------- */
+  /* Gleiches DOM wie unten, nur andere Anordnung: zwei Spalten an den
+     Bildschirmrändern, Kachel-Inhalt zeilenweise, Name über dem Portrait. */
+  .layout-sides #bottomstrip {
+    top: 50%; bottom: auto; left: 0; right: 0;
+    transform: translateY(-50%);
+    justify-content: space-between;
+    background: transparent; border: none; box-shadow: none; border-radius: 0;
+  }
+  .layout-sides #divider { display: none; }
+  .layout-sides .squad { flex-direction: column; gap: 6px; }
+
+  .layout-sides .tile {
+    width: 226px; padding: 7px 10px;
+    align-items: flex-start;
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+  }
+  .layout-sides .squad.blue .tile { border-left: 3px solid var(--blue); border-radius: 0 7px 7px 0; }
+  .layout-sides .squad.red  .tile { border-right: 3px solid var(--red); border-radius: 7px 0 0 7px; align-items: flex-end; }
+
+  .layout-sides .tile-name { order: -1; margin: 0 0 5px; max-width: 100%; font-size: 12px; }
+  .layout-sides .tile-top { align-items: center; }
+  .layout-sides .squad.red .tile-top { flex-direction: row-reverse; }
+  .layout-sides .tile-items { grid-template-columns: repeat(4, 17px); }
+  .layout-sides .tile-stats { margin-top: 4px; font-size: 12px; }
 </style>
 </head>
 <body>

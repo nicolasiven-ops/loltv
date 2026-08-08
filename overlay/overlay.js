@@ -14,24 +14,39 @@ const MOCK = new URLSearchParams(location.search).has("mock");
 // Diagnose-Logging (nur in Electron verfügbar, nicht in der Browser-Vorschau).
 const HAS_NODE = typeof require === "function";
 const log = HAS_NODE ? require("./logger").log : () => {};
+const config = HAS_NODE ? require("./config") : null;
+const ipc = HAS_NODE ? require("electron").ipcRenderer : null;
 let eventsLogged = false;
 let sampleLogged = false;
 
-// Beim Takeover gesetzte Render-Eigenschaften: eigenes HUD statt Spiel-HUD.
-const TAKEOVER = {
-  fogOfWar: false,
-  interfaceScoreboard: false,
-  interfaceFrames: false,
-  interfaceScore: false,
-  interfaceTimeline: false,
-  interfaceReplay: false,
-  interfaceMinimap: true,
-  interfaceAnnounce: true,
-  interfaceKillCallouts: true,
-  interfaceNeutralTimers: false, // eigene Spawn-/Buff-Timer oben rechts
-  interfaceTarget: true,         // Champion-Panel unten links (bei Auswahl)
-  cameraAttached: false,
+// Aktuelle Einstellungen; in der Browser-Vorschau aus den Query-Parametern
+// (?layout=sides), sonst aus settings.json.
+let settings = config ? config.load() : {
+  playerLayout: new URLSearchParams(location.search).get("layout") || "bottom",
+  showScorebar: true, showObjectives: true, showGold: true, showItems: true,
+  hudScale: 100, fogOfWar: false, nativeMinimap: true, killCallouts: true,
+  floatingText: true,
 };
+
+// Beim Takeover gesetzte Render-Eigenschaften: eigenes HUD statt Spiel-HUD.
+// Die vom Nutzer steuerbaren Teile kommen aus den Einstellungen.
+function takeoverProps() {
+  return {
+    fogOfWar: settings.fogOfWar,
+    interfaceScoreboard: false,
+    interfaceFrames: false,
+    interfaceScore: false,
+    interfaceTimeline: false,
+    interfaceReplay: false,
+    interfaceMinimap: settings.nativeMinimap,
+    interfaceAnnounce: true,
+    interfaceKillCallouts: settings.killCallouts,
+    interfaceNeutralTimers: !settings.showObjectives, // sonst doppelt
+    interfaceTarget: true,         // Champion-Panel unten links (bei Auswahl)
+    floatingText: settings.floatingText,
+    cameraAttached: false,
+  };
+}
 
 const DRAKE_COLORS = {
   Fire: "#e06c4b", Ocean: "#4bb7e0", Mountain: "#b08d57", Air: "#a9c1c9",
@@ -42,6 +57,7 @@ const DRAKE_COLORS = {
 let ddragonVersion = null; // Data-Dragon-Version für Champion-/Item-Bilder
 let takeoverDone = false;
 let connected = false;
+let lastData = null;       // letzter Datensatz, für sofortiges Neuzeichnen
 
 // ---------------------------------------------------------------- Utilities
 
@@ -82,7 +98,7 @@ async function takeover() {
     await fetch(`${API}/replay/render`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(TAKEOVER),
+      body: JSON.stringify(takeoverProps()),
     });
     takeoverDone = true;
   } catch {
@@ -201,14 +217,14 @@ function playerTile(p) {
     ? `<div class="respawn">${Math.ceil(p.respawnTimer)}</div>` : "";
 
   // 7 feste Slots (6 Items + Trinket) im 2-spaltigen Raster neben dem Portrait.
-  const slots = Array.from({ length: 7 }, (_, i) => {
+  const slots = settings.showItems ? Array.from({ length: 7 }, (_, i) => {
     const item = (p.items || []).find((it) => it.slot === i);
     const img = item && ddragonVersion
       ? `<img src="https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/item/${item.itemID}.png"
            onerror="this.remove()" alt="">`
       : "";
     return `<div class="item">${img}</div>`;
-  });
+  }) : [];
 
   return `<div class="tile ${p.isDead ? "dead" : ""}">
     <div class="tile-top">
@@ -254,13 +270,15 @@ function render(data) {
   // Absolutes Gold (Schätzung, s. estimatedGold) + Differenz unterm Führenden.
   const goldBlue = estimatedGold(players, "ORDER", now);
   const goldRed = estimatedGold(players, "CHAOS", now);
-  $("gold-blue").textContent = `~${(goldBlue / 1000).toFixed(1)}k`;
-  $("gold-red").textContent = `~${(goldRed / 1000).toFixed(1)}k`;
   const diff = goldBlue - goldRed;
-  $("golddiff-blue").textContent = diff >= 300 ? `+${(diff / 1000).toFixed(1)}k` : "";
-  $("golddiff-blue").style.color = "var(--blue-bright)";
-  $("golddiff-red").textContent = diff <= -300 ? `+${(-diff / 1000).toFixed(1)}k` : "";
-  $("golddiff-red").style.color = "var(--red-bright)";
+  if (settings.showGold) {
+    $("gold-blue").textContent = `~${(goldBlue / 1000).toFixed(1)}k`;
+    $("gold-red").textContent = `~${(goldRed / 1000).toFixed(1)}k`;
+    $("golddiff-blue").textContent = diff >= 300 ? `+${(diff / 1000).toFixed(1)}k` : "";
+    $("golddiff-blue").style.color = "var(--blue-bright)";
+    $("golddiff-red").textContent = diff <= -300 ? `+${(-diff / 1000).toFixed(1)}k` : "";
+    $("golddiff-red").style.color = "var(--red-bright)";
+  }
 
   // Role-Quest-Slots: Layout steht, Datenquelle wird noch verdrahtet —
   // welche Felder die API dafür liefert, zeigt das Diagnose-Log.
@@ -297,9 +315,19 @@ function render(data) {
 function setConnected(on) {
   connected = on;
   $("status").classList.toggle("hidden", on);
-  for (const id of ["scorebar", "bottomstrip", "objpanel"]) {
-    $(id).classList.toggle("hidden", !on);
-  }
+  $("bottomstrip").classList.toggle("hidden", !on);
+  $("scorebar").classList.toggle("hidden", !on || !settings.showScorebar);
+  $("objpanel").classList.toggle("hidden", !on || !settings.showObjectives);
+}
+
+// Einstellungen aufs HUD anwenden: Layout, Sichtbarkeiten, Größe.
+function applySettings() {
+  document.body.classList.toggle("layout-sides", settings.playerLayout === "sides");
+  document.body.classList.toggle("layout-bottom", settings.playerLayout !== "sides");
+  document.body.classList.toggle("no-gold", !settings.showGold);
+  applyScale();
+  if (connected) setConnected(true);
+  takeoverDone = false; // Spiel-Optik (Fog of War etc.) neu setzen
 }
 
 // --------------------------------------------------------------- Poll-Loop
@@ -310,6 +338,7 @@ async function poll() {
     if (!data.allPlayers || data.allPlayers.length === 0) throw new Error("noch keine Spieler");
     await takeover();
     if (!connected) setConnected(true);
+    lastData = data;
     render(data);
   } catch {
     takeoverDone = false;
@@ -359,15 +388,24 @@ function mockData() {
 
 // -------------------------------------------------------------------- Start
 
-// HUD mit der Fenstergröße mitskalieren (Design-Referenz: 1920 px Breite).
+// HUD mit der Fenstergröße mitskalieren (Design-Referenz: 1920 px Breite),
+// zusätzlich die Feinjustierung aus den Einstellungen.
 function applyScale() {
-  const scale = Math.max(0.55, Math.min(1.6, window.innerWidth / 1920));
-  document.body.style.zoom = String(scale);
+  const auto = Math.max(0.55, Math.min(1.6, window.innerWidth / 1920));
+  document.body.style.zoom = String(auto * (settings.hudScale || 100) / 100);
 }
 window.addEventListener("resize", applyScale);
-applyScale();
+
+if (ipc) {
+  ipc.on("settings-changed", () => {
+    settings = config.load();
+    applySettings();
+    if (connected && lastData) render(lastData);
+  });
+}
 
 if (MOCK) document.body.classList.add("mock");
+applySettings();
 loadDdragonVersion();
 poll();
 setInterval(poll, POLL_MS);

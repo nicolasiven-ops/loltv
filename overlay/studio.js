@@ -379,6 +379,7 @@ if (ipc) {
   for (const [id, action] of [["btn-min", "minimize"], ["btn-max", "maximize"], ["btn-close", "close"]]) {
     $(id).addEventListener("click", () => ipc.send("win-control", action));
   }
+  $("btn-settings").addEventListener("click", () => ipc.send("open-settings"));
 }
 
 setStatus();
