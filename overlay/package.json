@@ -4,7 +4,11 @@
   "description": "Transparentes Broadcast-Overlay für den LoL-Replay-Client",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "fullscreen": "electron . --fullscreen-overlay"
+  },
+  "dependencies": {
+    "koffi": "^2.9.0"
   },
   "devDependencies": {
     "electron": "^33.0.0"

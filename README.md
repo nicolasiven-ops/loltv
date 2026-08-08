@@ -41,26 +41,32 @@ hängt (Referenz für spätere tiefere Kamera-/Rendering-Kontrolle).
 
 ## Broadcast-Overlay (eigenes HUD im Pro-Look)
 
-Wem die eingebaute Spectator-Optik nicht reicht: `overlay/` enthält ein
-**transparentes HTML-Overlay** (Electron), das sich über das Spielfenster
-legt, das native HUD per Replay-API ausblendet und stattdessen eigene
-Broadcast-Grafiken zeichnet — Score-Bar mit Timer, Kills, Türmen, Baronen
-und Drachen-Souls sowie Team-Frames beider Seiten mit Portrait, Level, KDA,
-CS, Items und Respawn-Timern. Da alles HTML/CSS ist, lässt sich die Optik
-frei umbauen. Die Daten kommen von der Live-Client-Data-API
-(`/liveclientdata/allgamedata`, Port 2999 — läuft auch im Replay);
-Champion-/Item-Bilder von Riots Data Dragon CDN.
+Wem die eingebaute Spectator-Optik nicht reicht: `overlay/` enthält den
+**LoLTV-Player** (Electron). Standardmodus ist das **Studio-Fenster**: ein
+eigenes Fenster mit Titelleiste und Playback-Leiste (Play/Pause, Spulen,
+Tempo 0,5×–8×), in das das laufende Replay-Spielfenster automatisch
+**eingebettet** wird (Win32 `SetParent` via koffi). Über der Spielfläche
+liegt das Broadcast-HUD: Score-Bar mit Timer, Kills, Türmen, Baronen und
+Drachen sowie Team-Frames beider Seiten mit Portrait, Level, KDA, CS, Items
+und Respawn-Timern; das native Spiel-HUD wird per Replay-API ausgeblendet.
+Da alles HTML/CSS ist, lässt sich die Optik frei umbauen. Die Daten kommen
+von der Live-Client-Data-API (`/liveclientdata/allgamedata`, Port 2999 —
+läuft auch im Replay); Champion-/Item-Bilder von Riots Data Dragon CDN.
 
 **Voraussetzungen:** [Node.js LTS](https://nodejs.org/de) installiert; das
-Spiel läuft im Fenstermodus **„Randlos“** (Einstellungen → Grafik), damit das
-Overlay darüber liegen kann.
+Spiel läuft im Fenstermodus **„Randlos“** oder „Fenster“ (Einstellungen →
+Grafik) — echtes Vollbild lässt sich nicht einbetten.
 
     cd overlay
-    npm install    # einmalig
-    npm start      # Overlay starten (wartet aufs Replay)
+    npm install    # einmalig, und erneut nach Dependency-Änderungen
+    npm start      # Studio-Fenster öffnen (wartet aufs Replay)
 
-Hotkeys: `Strg+F12` Overlay ein-/ausblenden, `Strg+Alt+F12` beenden. Das
-Overlay ist klickdurchlässig — Maus und Tastatur gehen ganz normal ans Spiel.
+Hotkeys: `Strg+F12` HUD ein-/ausblenden, `Strg+Alt+F12` beenden. Das HUD ist
+klickdurchlässig — Maus und Tastatur gehen ganz normal ans Spiel. Beim
+Beenden wird das Spielfenster wieder als normales Fenster ausgehängt.
+
+**Alternativmodus** (wie früher, ohne Einbettung): `npm run fullscreen` legt
+das HUD als transparentes Vollbild-Overlay über den ganzen Bildschirm.
 
 **Design-Vorschau ohne laufendes Spiel:** `overlay/overlay.html?mock=1` im
 Browser öffnen (zeigt Beispieldaten).
