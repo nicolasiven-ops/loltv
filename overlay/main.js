@@ -44,22 +44,37 @@ function stageRect() {
   return { x: 0, y: TOPBAR, width: w, height: Math.max(0, h - TOPBAR - BOTTOMBAR) };
 }
 
-// Bühne, HUD-Fenster und angedocktes Spielfenster deckungsgleich halten.
+// Physische Bildschirm-Koordinaten der Bühne (für Cursor-Vergleiche).
+function stageScreenPhys() {
+  const cb = studio.getContentBounds();
+  const stage = stageRect();
+  return screen.dipToScreenRect(studio, {
+    x: cb.x + stage.x, y: cb.y + stage.y,
+    width: stage.width, height: stage.height,
+  });
+}
+
+// Bühne, HUD-Fenster und eingebettetes Spielfenster deckungsgleich halten.
 function layout() {
   if (!studio || studio.isDestroyed() || studio.isMinimized()) return;
   const cb = studio.getContentBounds();
   const stage = stageRect();
-  const stageScreenDip = {
-    x: cb.x + stage.x, y: cb.y + stage.y,
-    width: stage.width, height: stage.height,
-  };
   if (hud && !hud.isDestroyed()) {
-    hud.setBounds(stageScreenDip);
+    hud.setBounds({
+      x: cb.x + stage.x, y: cb.y + stage.y,
+      width: stage.width, height: stage.height,
+    });
   }
   if (gameHwnd && embed.isAlive(gameHwnd)) {
-    // DIP → physische Bildschirm-Pixel (DPI-Skalierung berücksichtigen).
-    const phys = screen.dipToScreenRect(studio, stageScreenDip);
-    embed.moveToScreen(gameHwnd, phys.x, phys.y, phys.width, phys.height);
+    // Kind-Fenster: Koordinaten relativ zur Studio-Client-Fläche, in
+    // physischen Pixeln (DPI-Skalierung des Monitors berücksichtigen).
+    const scale = screen.getDisplayMatching(studio.getBounds()).scaleFactor;
+    const phys = stageScreenPhys();
+    embed.moveTo(
+      gameHwnd,
+      Math.round(stage.x * scale), Math.round(stage.y * scale),
+      phys.width, phys.height
+    );
   }
 }
 
@@ -139,13 +154,35 @@ function embedTick() {
 // ausgeblendet, sobald weder Studio noch Spiel im Vordergrund sind.
 function hudVisibilityTick() {
   if (!studio || studio.isDestroyed() || !hud || hud.isDestroyed()) return;
+  // Mit Fokus im eingebetteten Spiel meldet Electron das Studio als
+  // unfokussiert — deshalb zählt auch das Vordergrund-Fenster (Studio-HWND).
   const fg = embed.foreground();
-  const ours = studio.isFocused() || (gameHwnd !== 0n && fg === gameHwnd);
-  // Erst zeigen, wenn ein Replay angedockt ist — sonst schwebt der
+  const hostHwnd = studio.getNativeWindowHandle().readBigUInt64LE(0);
+  const ours = studio.isFocused() || fg === hostHwnd || (gameHwnd !== 0n && fg === gameHwnd);
+  // Erst zeigen, wenn ein Replay eingebettet ist — sonst schwebt der
   // HUD-Status-Chip über der Suchansicht.
   const shouldShow = ours && !studio.isMinimized() && gameHwnd !== 0n;
   if (shouldShow && !hud.isVisible()) hud.showInactive();
   else if (!shouldShow && hud.isVisible()) hud.hide();
+}
+
+// „Fokus folgt der Maus“: Steht der Cursor über der Bühne, bekommt das
+// eingebettete Spiel echten Tastatur-Fokus (AttachThreadInput + SetFocus) —
+// ein fremdes Kind-Fenster bekäme ihn sonst nie. Über den Leisten behält
+// das Studio den Fokus. Nebenbei wird die Cursor-Sperre des Spiels gelöst.
+function interactionTick() {
+  if (!studio || studio.isDestroyed()) return;
+  if (!gameHwnd || !embed.isAlive(gameHwnd) || studio.isMinimized()) return;
+  embed.releaseCursorClip();
+  const fg = embed.foreground();
+  const hostHwnd = studio.getNativeWindowHandle().readBigUInt64LE(0);
+  if (fg !== hostHwnd && fg !== gameHwnd && !studio.isFocused()) return;
+  const pos = embed.cursorPos();
+  if (!pos) return;
+  const stage = stageScreenPhys();
+  const inStage = pos.x >= stage.x && pos.x < stage.x + stage.width
+    && pos.y >= stage.y && pos.y < stage.y + stage.height;
+  if (inStage) embed.focusWindow(gameHwnd);
 }
 
 function createStudio() {
@@ -193,12 +230,7 @@ function createStudio() {
 
   setInterval(embedTick, EMBED_POLL_MS);
   setInterval(hudVisibilityTick, 400);
-  // Cursor-Sperre des Spiels regelmäßig lösen (siehe embed.releaseCursorClip).
-  setInterval(() => {
-    if (gameHwnd && embed.isAlive(gameHwnd) && embed.foreground() === gameHwnd) {
-      embed.releaseCursorClip();
-    }
-  }, 200);
+  setInterval(interactionTick, 150);
   embedTick();
 }
 
