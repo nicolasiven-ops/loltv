@@ -15,6 +15,7 @@ const MOCK = new URLSearchParams(location.search).has("mock");
 const HAS_NODE = typeof require === "function";
 const log = HAS_NODE ? require("./logger").log : () => {};
 let eventsLogged = false;
+let sampleLogged = false;
 
 // Beim Takeover gesetzte Render-Eigenschaften: eigenes HUD statt Spiel-HUD.
 const TAKEOVER = {
@@ -150,7 +151,7 @@ function spawnTimers(stats, events, now) {
     : 1200;
   const baronLeft = baronNext - now;
   if (baronLeft > 0 && baronLeft <= 300) {
-    chips.push({ label: "BARON", cls: "spawn", left: baronLeft });
+    chips.push({ label: "BARON", cls: "spawn baron", left: baronLeft });
   }
   const dragonKills = events.filter((e) => e.EventName === "DragonKill");
   const soul = stats.ORDER.drakes.length >= 4 || stats.CHAOS.drakes.length >= 4;
@@ -159,7 +160,11 @@ function spawnTimers(stats, events, now) {
     : 300;
   const dragonLeft = dragonNext - now;
   if (dragonLeft > 0 && dragonLeft <= 360) {
-    chips.push({ label: soul ? "ELDER" : "DRACHE", cls: "spawn", left: dragonLeft });
+    chips.push({
+      label: soul ? "ELDER" : "DRACHE",
+      cls: soul ? "spawn elder" : "spawn",
+      left: dragonLeft,
+    });
   }
   return chips;
 }
@@ -231,6 +236,13 @@ function render(data) {
   if (!eventsLogged && events.length > 0) {
     eventsLogged = true;
     log("hud: erste Events:", events.length, JSON.stringify(events.slice(0, 5)));
+    log("hud: Event-Typen:", [...new Set(events.map((e) => e.EventName))].join(", "));
+  }
+  // Einmalige Feld-Inventur (u. a. für die Role-Quest-Datenquelle).
+  if (!sampleLogged && players.length > 0) {
+    sampleLogged = true;
+    log("hud: Spieler-Beispiel:", JSON.stringify(players[0]));
+    log("hud: gameData:", JSON.stringify(data.gameData));
   }
 
   $("clock").textContent = fmtClock(now);
@@ -238,8 +250,25 @@ function render(data) {
   $("kills-red").textContent = stats.CHAOS.kills;
   $("towers-blue").textContent = stats.ORDER.towers;
   $("towers-red").textContent = stats.CHAOS.towers;
-  $("barons-blue").textContent = stats.ORDER.barons;
-  $("barons-red").textContent = stats.CHAOS.barons;
+
+  // Absolutes Gold (Schätzung, s. estimatedGold) + Differenz unterm Führenden.
+  const goldBlue = estimatedGold(players, "ORDER", now);
+  const goldRed = estimatedGold(players, "CHAOS", now);
+  $("gold-blue").textContent = `~${(goldBlue / 1000).toFixed(1)}k`;
+  $("gold-red").textContent = `~${(goldRed / 1000).toFixed(1)}k`;
+  const diff = goldBlue - goldRed;
+  $("golddiff-blue").textContent = diff >= 300 ? `+${(diff / 1000).toFixed(1)}k` : "";
+  $("golddiff-blue").style.color = "var(--blue-bright)";
+  $("golddiff-red").textContent = diff <= -300 ? `+${(-diff / 1000).toFixed(1)}k` : "";
+  $("golddiff-red").style.color = "var(--red-bright)";
+
+  // Role-Quest-Slots: Layout steht, Datenquelle wird noch verdrahtet —
+  // welche Felder die API dafür liefert, zeigt das Diagnose-Log.
+  for (const id of ["quests-blue", "quests-red"]) {
+    if (!$(id).childElementCount) {
+      $(id).innerHTML = '<div class="quest"></div>'.repeat(5);
+    }
+  }
 
   for (const [team, el] of [["ORDER", $("drakes-blue")], ["CHAOS", $("drakes-red")]]) {
     el.innerHTML = stats[team].drakes
@@ -258,17 +287,6 @@ function render(data) {
     chips.push(`<div class="chip ${c.cls}">${c.label} ${fmtClock(c.left)}</div>`);
   }
   $("objpanel").innerHTML = chips.join("");
-
-  // Geschätzte Golddifferenz (die API liefert kein echtes Gold, s. estimatedGold).
-  const diff = estimatedGold(players, "ORDER", now) - estimatedGold(players, "CHAOS", now);
-  const gd = $("golddiff");
-  if (Math.abs(diff) >= 300) {
-    gd.textContent = `${diff > 0 ? "◂" : "▸"} ~${(Math.abs(diff) / 1000).toFixed(1)}k`;
-    gd.style.color = diff > 0 ? "var(--blue-bright)" : "var(--red-bright)";
-  } else {
-    gd.textContent = "ausgeglichen";
-    gd.style.color = "var(--dim)";
-  }
 
   $("squad-blue").innerHTML = players.filter((p) => p.team === "ORDER")
     .map(playerTile).join("");

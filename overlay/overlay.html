@@ -54,19 +54,33 @@
     box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
   }
   .sb-side {
-    display: flex; align-items: center; gap: 14px;
-    padding: 8px 18px;
+    display: flex; flex-direction: column; justify-content: center; gap: 5px;
+    padding: 8px 16px 7px;
   }
-  .sb-side.blue { flex-direction: row-reverse; border-bottom: 3px solid var(--blue); border-radius: 0 0 0 8px; }
-  .sb-side.red  { border-bottom: 3px solid var(--red); border-radius: 0 0 8px 0; }
-  .sb-kills { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
-  .blue .sb-kills { color: var(--blue-bright); }
-  .red  .sb-kills { color: var(--red-bright); }
-  .sb-objs { display: flex; gap: 12px; }
+  .sb-side.blue { border-bottom: 3px solid var(--blue); border-radius: 0 0 0 8px; align-items: flex-end; }
+  .sb-side.red  { border-bottom: 3px solid var(--red); border-radius: 0 0 8px 0; align-items: flex-start; }
+  .sb-row1 { display: flex; align-items: center; gap: 16px; }
+  .red .sb-row1 { flex-direction: row-reverse; }
+  .sb-row2 { display: flex; align-items: center; gap: 10px; min-height: 15px; }
+  .red .sb-row2 { flex-direction: row-reverse; }
+
   .sb-obj { display: flex; align-items: center; gap: 5px; font-size: 15px; font-weight: 600; color: #cfd6e2; font-variant-numeric: tabular-nums; }
   .sb-obj svg { width: 15px; height: 15px; fill: var(--dim); }
+
+  .sb-gold { display: flex; flex-direction: column; align-items: center; line-height: 1.15; }
+  .sb-gold .val { font-size: 17px; font-weight: 700; color: #e8d9b6; font-variant-numeric: tabular-nums; }
+  .sb-golddiff { font-size: 10px; font-weight: 700; min-height: 12px; font-variant-numeric: tabular-nums; }
+
   .drakes { display: flex; gap: 4px; align-items: center; }
   .drake { width: 9px; height: 9px; transform: rotate(45deg); border-radius: 2px; }
+
+  /* Role-Quest-Slots (Datenquelle wird noch verdrahtet, s. loltv.log). */
+  .quests { display: flex; gap: 3px; }
+  .quest {
+    width: 13px; height: 13px; border-radius: 3px;
+    background: #1b202b; border: 1px solid rgba(255, 255, 255, 0.09);
+  }
+  .quest.done { background: rgba(200, 164, 92, 0.55); border-color: var(--gold); }
 
   /* ---------- Objective-Panel oben rechts (Buffs + Spawns) ---------- */
   #objpanel {
@@ -88,13 +102,18 @@
 
   #clockbox {
     display: flex; flex-direction: column; justify-content: center; align-items: center;
-    padding: 6px 20px; min-width: 110px;
+    padding: 6px 20px; min-width: 128px; gap: 2px;
     border-left: 1px solid var(--panel-line);
     border-right: 1px solid var(--panel-line);
   }
-  #clock { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
-  #clock-label { font-size: 9px; letter-spacing: 2.5px; color: var(--gold); font-weight: 600; }
-  #golddiff { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  #kills-line {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  #kills-line .blue { color: var(--blue-bright); }
+  #kills-line .red { color: var(--red-bright); }
+  #kills-line .swords { font-size: 13px; color: var(--gold); }
+  #clock { font-size: 13px; font-weight: 600; color: var(--dim); font-variant-numeric: tabular-nums; }
 
   /* ---------- Spieler-Leiste unten Mitte (LPL-Stil) ---------- */
   #bottomstrip {
@@ -185,24 +204,37 @@
 
   <div id="scorebar" class="hidden">
     <div class="sb-side blue">
-      <div class="sb-kills" id="kills-blue">0</div>
-      <div class="sb-objs">
+      <div class="sb-row1">
         <div class="sb-obj" title="Türme"><svg viewBox="0 0 16 16"><path d="M4 15V7L3 6V3h2v1h2V3h2v1h2V3h2v3l-1 1v8z"/></svg><span id="towers-blue">0</span></div>
-        <div class="sb-obj" title="Barone"><svg viewBox="0 0 16 16"><path d="M8 1l2 3 3-1-1 4 2 2-3 1v3l-3-1-3 1v-3L2 9l2-2-1-4 3 1z"/></svg><span id="barons-blue">0</span></div>
+        <div class="sb-gold" title="Gold (geschätzt)">
+          <span class="val" id="gold-blue">~0k</span>
+          <span class="sb-golddiff" id="golddiff-blue"></span>
+        </div>
+      </div>
+      <div class="sb-row2">
         <div class="drakes" id="drakes-blue"></div>
+        <div class="quests" id="quests-blue" title="Role-Quests"></div>
       </div>
     </div>
     <div id="clockbox">
+      <div id="kills-line">
+        <span class="blue" id="kills-blue">0</span>
+        <span class="swords">⚔</span>
+        <span class="red" id="kills-red">0</span>
+      </div>
       <div id="clock">0:00</div>
-      <div id="clock-label">LOLTV</div>
-      <div id="golddiff"></div>
     </div>
     <div class="sb-side red">
-      <div class="sb-kills" id="kills-red">0</div>
-      <div class="sb-objs">
+      <div class="sb-row1">
         <div class="sb-obj" title="Türme"><svg viewBox="0 0 16 16"><path d="M4 15V7L3 6V3h2v1h2V3h2v1h2V3h2v3l-1 1v8z"/></svg><span id="towers-red">0</span></div>
-        <div class="sb-obj" title="Barone"><svg viewBox="0 0 16 16"><path d="M8 1l2 3 3-1-1 4 2 2-3 1v3l-3-1-3 1v-3L2 9l2-2-1-4 3 1z"/></svg><span id="barons-red">0</span></div>
+        <div class="sb-gold" title="Gold (geschätzt)">
+          <span class="val" id="gold-red">~0k</span>
+          <span class="sb-golddiff" id="golddiff-red"></span>
+        </div>
+      </div>
+      <div class="sb-row2">
         <div class="drakes" id="drakes-red"></div>
+        <div class="quests" id="quests-red" title="Role-Quests"></div>
       </div>
     </div>
   </div>
