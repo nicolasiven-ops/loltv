@@ -79,7 +79,8 @@
 
   /* ---------- Spieler-Leiste unten Mitte (LPL-Stil) ---------- */
   #bottomstrip {
-    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    /* leicht links der Mitte, damit die Minimap unten rechts Luft hat */
+    position: fixed; bottom: 0; left: 47%; transform: translateX(-50%);
     display: flex; align-items: stretch;
     background: var(--panel);
     border: 1px solid var(--panel-line); border-bottom: none;

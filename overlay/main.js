@@ -1,9 +1,11 @@
 // LoLTV — Electron-Host.
 //
 // Standardmodus „Studio“: eigenes Fenster mit Titelleiste und Playback-Leiste;
-// das laufende Replay-Spielfenster wird per Win32 SetParent in die Bühne
-// eingebettet (embed.js), und das Broadcast-HUD (overlay.html) liegt als
-// transparentes, klickdurchlässiges Kind-Fenster über der Bühne.
+// das laufende Replay-Spielfenster wird per Win32-Docking (embed.js) rahmenlos
+// und deckungsgleich über die Bühne gelegt — es bleibt ein eigenständiges
+// Fenster mit nativer Eingabe-Pipeline (Tastatur, ESC-Menü, Kamera). Das
+// Broadcast-HUD (overlay.html) schwebt als transparentes, klickdurchlässiges
+// Fenster darüber.
 //
 // Legacy-Modus: `npm run fullscreen` legt das HUD wie früher als
 // Vollbild-Overlay über den ganzen Bildschirm (ohne Einbettung).
@@ -36,24 +38,22 @@ function stageRect() {
   return { x: 0, y: TOPBAR, width: w, height: Math.max(0, h - TOPBAR - BOTTOMBAR) };
 }
 
-// Bühne, HUD-Fenster und eingebettetes Spielfenster deckungsgleich halten.
+// Bühne, HUD-Fenster und angedocktes Spielfenster deckungsgleich halten.
 function layout() {
   if (!studio || studio.isDestroyed() || studio.isMinimized()) return;
   const cb = studio.getContentBounds();
   const stage = stageRect();
+  const stageScreenDip = {
+    x: cb.x + stage.x, y: cb.y + stage.y,
+    width: stage.width, height: stage.height,
+  };
   if (hud && !hud.isDestroyed()) {
-    hud.setBounds({
-      x: cb.x + stage.x, y: cb.y + stage.y,
-      width: stage.width, height: stage.height,
-    });
+    hud.setBounds(stageScreenDip);
   }
   if (gameHwnd && embed.isAlive(gameHwnd)) {
-    const scale = screen.getDisplayMatching(studio.getBounds()).scaleFactor;
-    embed.moveTo(
-      gameHwnd,
-      Math.round(stage.x * scale), Math.round(stage.y * scale),
-      Math.round(stage.width * scale), Math.round(stage.height * scale)
-    );
+    // DIP → physische Bildschirm-Pixel (DPI-Skalierung berücksichtigen).
+    const phys = screen.dipToScreenRect(studio, stageScreenDip);
+    embed.moveToScreen(gameHwnd, phys.x, phys.y, phys.width, phys.height);
   }
 }
 
@@ -63,7 +63,7 @@ function sendStatus() {
   }
 }
 
-// Spielfenster suchen und einbetten; Verlust (Replay beendet) erkennen.
+// Spielfenster suchen und andocken; Verlust (Replay beendet) erkennen.
 function embedTick() {
   if (!embed.available() || !studio || studio.isDestroyed()) return;
   if (gameHwnd && !embed.isAlive(gameHwnd)) {
@@ -74,12 +74,24 @@ function embedTick() {
     const found = embed.findGame();
     if (found) {
       const host = studio.getNativeWindowHandle().readBigUInt64LE(0);
-      embed.embed(found, host);
+      embed.attach(found, host);
       gameHwnd = found;
       layout();
       sendStatus();
     }
   }
+}
+
+// Das HUD ist global „always on top“, damit es über dem angedockten
+// Spielfenster liegt. Damit es nicht über fremden Apps schwebt, wird es
+// ausgeblendet, sobald weder Studio noch Spiel im Vordergrund sind.
+function hudVisibilityTick() {
+  if (!studio || studio.isDestroyed() || !hud || hud.isDestroyed()) return;
+  const fg = embed.foreground();
+  const ours = studio.isFocused() || (gameHwnd !== 0n && fg === gameHwnd);
+  const shouldShow = ours && !studio.isMinimized();
+  if (shouldShow && !hud.isVisible()) hud.showInactive();
+  else if (!shouldShow && hud.isVisible()) hud.hide();
 }
 
 function createStudio() {
@@ -111,17 +123,22 @@ function createStudio() {
     webPreferences: { webSecurity: false, backgroundThrottling: false },
   });
   hud.setIgnoreMouseEvents(true);
+  hud.setAlwaysOnTop(true, "screen-saver");
   hud.loadFile("overlay.html");
 
   for (const ev of ["resize", "move", "maximize", "unmaximize", "restore"]) {
     studio.on(ev, layout);
   }
   studio.on("minimize", () => hud.hide());
-  studio.on("restore", () => hud.showInactive());
+  studio.on("restore", () => {
+    layout();
+    hud.showInactive();
+  });
   studio.on("closed", () => app.quit());
   hud.once("ready-to-show", layout);
 
   setInterval(embedTick, EMBED_POLL_MS);
+  setInterval(hudVisibilityTick, 400);
   embedTick();
 }
 

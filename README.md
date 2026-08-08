@@ -45,7 +45,9 @@ Wem die eingebaute Spectator-Optik nicht reicht: `overlay/` enthält den
 **LoLTV-Player** (Electron). Standardmodus ist das **Studio-Fenster**: ein
 eigenes Fenster mit Titelleiste und Playback-Leiste (Play/Pause, Spulen,
 Tempo 0,5×–8×), in das das laufende Replay-Spielfenster automatisch
-**eingebettet** wird (Win32 `SetParent` via koffi). Über der Spielfläche
+**angedockt** wird (Win32-Docking via koffi: rahmenlos + Owner-Fenster —
+das Spiel bleibt ein eigenständiges Fenster, Tastatur/Maus/ESC-Menü
+funktionieren nativ wie im normalen Spectator). Über der Spielfläche
 liegt das Broadcast-HUD: Score-Bar mit Timer, Kills, Türmen, Baronen und
 Drachen sowie Team-Frames beider Seiten mit Portrait, Level, KDA, CS, Items
 und Respawn-Timern; das native Spiel-HUD wird per Replay-API ausgeblendet.

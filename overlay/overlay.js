@@ -244,6 +244,14 @@ function mockData() {
 
 // -------------------------------------------------------------------- Start
 
+// HUD mit der Fenstergröße mitskalieren (Design-Referenz: 1920 px Breite).
+function applyScale() {
+  const scale = Math.max(0.55, Math.min(1.6, window.innerWidth / 1920));
+  document.body.style.zoom = String(scale);
+}
+window.addEventListener("resize", applyScale);
+applyScale();
+
 if (MOCK) document.body.classList.add("mock");
 loadDdragonVersion();
 poll();
