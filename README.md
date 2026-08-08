@@ -78,7 +78,10 @@ Zahnrad in der Titelleiste. Alles wirkt sofort und wird in
 - **Spieler-Anzeige:** *Unten* (LPL-Stil, Leiste unten Mitte) oder *Seiten*
   (LCK-Stil, Spalten links und rechts).
 - **HUD-Elemente:** Score-Bar, Objective-Timer, Gold-Anzeige und Items in den
-  Kacheln einzeln an-/abschaltbar.
+  Kacheln einzeln an-/abschaltbar. (Im Seiten-Layout bleiben die Kacheln
+  bewusst ohne Items — Portrait, Name und KDA/CS reichen dort.)
+- **Champion-Details unten links:** das Panel des Spiels für den
+  ausgewählten Champion (Fähigkeiten, Werte, Items).
 - **HUD-Größe:** Feinjustierung 60–150 % zusätzlich zur automatischen
   Skalierung nach Fensterbreite.
 - **Optik des Spiels** (via Replay-API): Karte aufgedeckt (Fog of War),

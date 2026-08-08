@@ -24,6 +24,7 @@ const DEFAULTS = {
   // Optik des Spiels selbst (wird per Replay-API gesetzt)
   fogOfWar: false,        // false = Karte komplett aufgedeckt
   nativeMinimap: true,    // Minimap des Spiels
+  nativeChampionPanel: true, // Champion-Detailpanel unten links (interfaceFrames)
   minimapScale: 100,      // Minimap-Größe in Prozent (via game.cfg, ab Neustart)
   killCallouts: true,     // Kill-Banner des Spiels
   floatingText: true,     // Schadenszahlen

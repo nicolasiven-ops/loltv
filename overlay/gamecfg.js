@@ -64,16 +64,22 @@ function patchGameCfg(installDir, width, height, opts) {
   set("WindowMode", 1);
 
   // Minimap-Größe relativ zur Original-Einstellung (100 % = unverändert).
+  // MinimapMinScale wird mitskaliert, sonst klemmt das Spiel kleinere Werte
+  // auf diese Untergrenze fest und der Regler bliebe wirkungslos.
   const pct = opts && opts.minimapScale;
   if (pct && pct !== 100) {
+    const factor = pct / 100;
     const base = originalValue(installDir, "MinimapScale") ?? 0.55;
-    const scaled = Math.min(1, Math.max(0.05, base * (pct / 100)));
-    set("MinimapScale", scaled.toFixed(3), "HUD");
+    set("MinimapScale", Math.min(1, Math.max(0.05, base * factor)).toFixed(3), "HUD");
+    const min = originalValue(installDir, "MinimapMinScale");
+    if (min !== null) {
+      set("MinimapMinScale", Math.min(1, Math.max(0.02, min * factor)).toFixed(3), "HUD");
+    }
   }
   fs.writeFileSync(file, text);
 }
 
-function patchPersisted(installDir, width, height) {
+function patchPersisted(installDir, width, height, opts) {
   const file = path.join(cfgDir(installDir), "PersistedSettings.json");
   if (!fs.existsSync(file)) return;
   backupOnce(file);
@@ -82,26 +88,79 @@ function patchPersisted(installDir, width, height) {
     (f) => String(f.name).toLowerCase() === "game.cfg"
   );
   if (!gameCfg) return;
-  let general = (gameCfg.sections || []).find((s) => s.name === "General");
-  if (!general) {
-    general = { name: "General", settings: [] };
-    gameCfg.sections = gameCfg.sections || [];
-    gameCfg.sections.push(general);
-  }
-  const upsert = (name, value) => {
-    const hit = general.settings.find((s) => s.name === name);
-    if (hit) hit.value = String(value);
-    else general.settings.push({ name, value: String(value) });
+  gameCfg.sections = gameCfg.sections || [];
+
+  const section = (name) => {
+    let hit = gameCfg.sections.find((s) => s.name === name);
+    if (!hit) {
+      hit = { name, settings: [] };
+      gameCfg.sections.push(hit);
+    }
+    hit.settings = hit.settings || [];
+    return hit;
   };
-  upsert("Width", Math.round(width));
-  upsert("Height", Math.round(height));
-  upsert("WindowMode", 1);
+  const upsert = (sec, name, value) => {
+    const hit = sec.settings.find((s) => s.name === name);
+    if (hit) hit.value = String(value);
+    else sec.settings.push({ name, value: String(value) });
+  };
+
+  const general = section("General");
+  upsert(general, "Width", Math.round(width));
+  upsert(general, "Height", Math.round(height));
+  upsert(general, "WindowMode", 1);
+
+  // Minimap-Größe: League liest den Wert bevorzugt aus dieser Datei, deshalb
+  // wird sie zusätzlich zur game.cfg gepatcht.
+  const pct = opts && opts.minimapScale;
+  if (pct && pct !== 100) {
+    const base = originalValue(installDir, "MinimapScale") ?? 0.55;
+    const scaled = Math.min(1, Math.max(0.05, base * (pct / 100))).toFixed(3);
+    upsert(section("HUD"), "MinimapScale", scaled);
+  }
   fs.writeFileSync(file, JSON.stringify(data, null, 4));
+}
+
+// Diagnose: alle HUD-/Minimap-bezogenen Schlüssel beider Dateien auflisten,
+// damit sich der richtige Schlüsselname belegen lässt.
+function inspectHud(installDir) {
+  const out = [];
+  try {
+    const text = fs.readFileSync(path.join(cfgDir(installDir), "game.cfg"), "utf8");
+    const lines = text.split(/\r?\n/);
+    const start = lines.findIndex((l) => l.trim() === "[HUD]");
+    if (start === -1) {
+      out.push("game.cfg [HUD]: (Sektion fehlt)");
+    } else {
+      const body = [];
+      for (let i = start + 1; i < lines.length && !lines[i].startsWith("["); i++) {
+        if (lines[i].trim()) body.push(lines[i].trim());
+      }
+      out.push("game.cfg [HUD]: " + (body.join(" | ") || "(leer)"));
+    }
+    const loose = lines.filter((l) => /minimap/i.test(l));
+    if (loose.length) out.push("game.cfg Minimap-Zeilen: " + loose.join(" | "));
+  } catch (err) {
+    out.push("game.cfg nicht lesbar: " + err.message);
+  }
+  try {
+    const data = JSON.parse(
+      fs.readFileSync(path.join(cfgDir(installDir), "PersistedSettings.json"), "utf8"));
+    for (const f of data.files || []) {
+      for (const s of f.sections || []) {
+        const hits = (s.settings || []).filter((x) => /minimap/i.test(x.name));
+        for (const h of hits) out.push(`persisted ${f.name}/${s.name}: ${h.name}=${h.value}`);
+      }
+    }
+  } catch (err) {
+    out.push("PersistedSettings nicht lesbar: " + err.message);
+  }
+  return out.join("\n");
 }
 
 function applyStageResolution(installDir, width, height, opts) {
   patchGameCfg(installDir, width, height, opts);
-  patchPersisted(installDir, width, height);
+  patchPersisted(installDir, width, height, opts);
 }
 
 // Originale zurückschreiben, falls Backups existieren.
@@ -119,4 +178,4 @@ function restoreIfNeeded(installDir) {
   return restored;
 }
 
-module.exports = { applyStageResolution, restoreIfNeeded };
+module.exports = { applyStageResolution, restoreIfNeeded, inspectHud };

@@ -256,6 +256,8 @@
     display: flex; align-items: center; justify-content: center;
   }
 
+  .tile-text { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+
   .tile-name {
     margin-top: 7px; max-width: 92px;
     font-size: 11px; font-weight: 600; letter-spacing: 0.2px;
@@ -270,41 +272,56 @@
   .cs { color: rgba(200, 164, 92, 0.85); }
 
   /* ---------- Layout „Seiten“ (LCK-Stil) ---------- */
-  /* Gleiches DOM, andere Anordnung: schmale Karten an den Rändern. */
+  /* Gleiches DOM, andere Anordnung: kompakte Karten an den Rändern, ohne
+     Items (die überladen die schmale Spalte) und leicht nach oben versetzt,
+     damit die Minimap unten rechts frei bleibt. */
   .layout-sides #bottomstrip {
-    top: 50%; bottom: auto; left: 0; right: 0;
+    top: 40%; bottom: auto; left: 0; right: 0;
     transform: translateY(-50%);
     justify-content: space-between;
     background: none; border: none; box-shadow: none; border-radius: 0;
   }
   .layout-sides #bottomstrip::before { display: none; }
   .layout-sides #divider { display: none; }
-  .layout-sides .squad { flex-direction: column; gap: 7px; }
+  .layout-sides .squad { flex-direction: column; gap: 5px; }
 
   .layout-sides .tile {
-    width: 194px; padding: 7px 11px 8px;
-    align-items: flex-start;
+    width: auto; padding: 5px 10px 5px 7px;
+    flex-direction: row; align-items: center; gap: 9px;
     background: var(--glass);
     border: 1px solid var(--hairline);
     box-shadow: var(--shadow);
-    border-radius: 0 14px 14px 0;
+    border-radius: 0 999px 999px 0;
   }
-  .layout-sides .squad.red .tile { align-items: flex-end; border-radius: 14px 0 0 14px; }
-  /* Team-Farbe als schmaler Verlauf an der Innenkante. */
+  .layout-sides .squad.red .tile {
+    flex-direction: row-reverse; padding: 5px 7px 5px 10px;
+    border-radius: 999px 0 0 999px;
+  }
+  /* Team-Farbe als schmaler Verlauf an der Außenkante. */
   .layout-sides .tile::after {
-    content: ""; position: absolute; top: 16%; bottom: 16%; width: 2px; border-radius: 2px;
+    content: ""; position: absolute; top: 22%; bottom: 22%; width: 2px; border-radius: 2px;
   }
   .layout-sides .squad.blue .tile::after { left: 0; background: linear-gradient(180deg, transparent, var(--blue-deep), transparent); }
   .layout-sides .squad.red  .tile::after { right: 0; background: linear-gradient(180deg, transparent, var(--red-deep), transparent); }
 
+  /* Items entfallen hier bewusst — Portrait, Name und KDA/CS reichen. */
+  .layout-sides .tile-items { display: none; }
+  .layout-sides .tile-top { gap: 0; }
+  .layout-sides .portrait { width: 38px; height: 38px; }
+  .layout-sides .level { font-size: 9px; min-width: 15px; height: 15px; }
+  .layout-sides .respawn { font-size: 15px; }
+
+  /* Name und Werte stehen als schmale Textspalte neben dem Portrait. */
   .layout-sides .tile-name {
-    order: -1; margin: 0 0 5px; max-width: 100%;
-    font-family: var(--serif); font-size: 12.5px; letter-spacing: 0.4px;
+    order: 0; margin: 0; max-width: 116px;
+    font-family: var(--serif); font-size: 12px; letter-spacing: 0.3px;
   }
-  /* Portraits sitzen außen (Bildschirmrand), Items zeigen nach innen. */
-  .layout-sides .squad.blue .tile-top { flex-direction: row-reverse; }
-  .layout-sides .tile-items { grid-template-columns: repeat(4, 15px); }
-  .layout-sides .tile-stats { margin-top: 5px; font-size: 11px; }
+  .layout-sides .tile-stats { margin: 1px 0 0; font-size: 10.5px; }
+  .layout-sides .tile-text {
+    display: flex; flex-direction: column; min-width: 0;
+    align-items: flex-start;
+  }
+  .layout-sides .squad.red .tile-text { align-items: flex-end; }
 </style>
 </head>
 <body>

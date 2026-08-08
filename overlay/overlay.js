@@ -34,7 +34,10 @@ function takeoverProps() {
   return {
     fogOfWar: settings.fogOfWar,
     interfaceScoreboard: false,
-    interfaceFrames: false,
+    // Champion-Detailpanel unten links (Fähigkeiten, Werte, Items des
+    // ausgewählten Champions) — das steckt im Spiel-HUD hinter
+    // „interfaceFrames“ und war bisher pauschal aus.
+    interfaceFrames: settings.nativeChampionPanel,
     interfaceScore: false,
     interfaceTimeline: false,
     interfaceReplay: false,
@@ -235,10 +238,12 @@ function playerTile(p) {
         <div class="level">${p.level}</div>
       </div>
     </div>
-    <div class="tile-name">${name}</div>
-    <div class="tile-stats">
-      <span class="kda">${s.kills}/<span class="d">${s.deaths}</span>/${s.assists}</span>
-      <span class="cs">${s.creepScore} CS</span>
+    <div class="tile-text">
+      <div class="tile-name">${name}</div>
+      <div class="tile-stats">
+        <span class="kda">${s.kills}/<span class="d">${s.deaths}</span>/${s.assists}</span>
+        <span class="cs">${s.creepScore} CS</span>
+      </div>
     </div>
   </div>`;
 }

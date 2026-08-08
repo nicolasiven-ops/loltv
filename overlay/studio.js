@@ -340,10 +340,12 @@ async function playReplay(btn, gameId, platformId) {
       const size = ipc ? await ipc.invoke("stage-size") : null;
       log("playReplay: installDir=", lcu.installDir(), "stage=", JSON.stringify(size));
       if (size && gamecfg && lcu.installDir()) {
+        log("playReplay: HUD-Schlüssel VOR dem Patch:\n" + gamecfg.inspectHud(lcu.installDir()));
         gamecfg.applyStageResolution(lcu.installDir(), size.width, size.height, {
           minimapScale: settings.minimapScale,
         });
-        log("playReplay: game.cfg + PersistedSettings gepatcht");
+        log("playReplay: gepatcht, minimapScale=", settings.minimapScale);
+        log("playReplay: HUD-Schlüssel NACH dem Patch:\n" + gamecfg.inspectHud(lcu.installDir()));
       }
     } catch (err) {
       log("playReplay: Config-Patch fehlgeschlagen:", err.message);
