@@ -298,15 +298,20 @@ async function playReplay(btn, gameId, platformId) {
       }
     } catch { /* zur Not startet das Replay mit der alten Auflösung */ }
 
-    // Start über den Client; wenn danach nichts passiert, direkt starten.
-    searchStatus("Replay-Client startet …");
-    await lcu.request("POST", `/lol-replays/v1/rofls/${gameId}/watch`, body).catch(() => {});
-    if (!(await waitForReplay(20000))) {
-      searchStatus("Start über den Client hakt — starte die .rofl direkt …");
+    // Immer direkt über die Spiel-Exe starten: Nur so gilt unsere
+    // game.cfg-Auflösung — beim Start über den Client (watch) überschreibt
+    // der die Datei kurz vorher aus seinen eigenen gespeicherten
+    // Einstellungen (daher stand im Spielmenü 1024×768). Der Client-Weg
+    // bleibt Notnagel, falls der Direktstart nicht möglich ist.
+    searchStatus("Replay startet …");
+    try {
       await directLaunch(gameId, platformId);
-      if (!(await waitForReplay(40000))) {
-        throw new Error("Replay-Client startet nicht (läuft evtl. schon ein Spiel oder ein anderes Replay?)");
-      }
+    } catch {
+      searchStatus("Direktstart nicht möglich — starte über den Client …");
+      await lcu.request("POST", `/lol-replays/v1/rofls/${gameId}/watch`, body).catch(() => {});
+    }
+    if (!(await waitForReplay(45000))) {
+      throw new Error("Replay-Client startet nicht (läuft evtl. schon ein Spiel oder ein anderes Replay?)");
     }
     searchStatus("");
     btn.textContent = "✔ läuft";

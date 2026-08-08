@@ -53,8 +53,17 @@ function init() {
     GetForegroundWindow: user32.func("GetForegroundWindow", "uint64_t", []),
     PostMessageW: user32.func("PostMessageW", "bool",
       ["uint64_t", "uint32_t", "uint64_t", "int64_t"]),
+    ClipCursor: user32.func("ClipCursor", "bool", ["void*"]),
   };
   return true;
+}
+
+// Maus-Fessel des Spiels lösen: League sperrt den Cursor im Fenstermodus auf
+// sein Fenster (fürs Edge-Panning). Im Studio soll die Maus aber jederzeit an
+// Titel- und Playback-Leiste kommen — main.js ruft das periodisch auf,
+// solange ein Replay angedockt und fokussiert ist.
+function releaseCursorClip() {
+  if (init()) fns.ClipCursor(null);
 }
 
 // Fenster höflich schließen (WM_CLOSE) — der Replay-Client beendet sich dann
@@ -106,4 +115,7 @@ function detach() {
   saved = null;
 }
 
-module.exports = { available, findGame, isAlive, foreground, attach, moveToScreen, closeWindow, detach };
+module.exports = {
+  available, findGame, isAlive, foreground,
+  attach, moveToScreen, closeWindow, releaseCursorClip, detach,
+};

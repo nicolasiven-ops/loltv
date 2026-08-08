@@ -152,6 +152,12 @@ function createStudio() {
 
   setInterval(embedTick, EMBED_POLL_MS);
   setInterval(hudVisibilityTick, 400);
+  // Cursor-Sperre des Spiels regelmäßig lösen (siehe embed.releaseCursorClip).
+  setInterval(() => {
+    if (gameHwnd && embed.isAlive(gameHwnd) && embed.foreground() === gameHwnd) {
+      embed.releaseCursorClip();
+    }
+  }, 200);
   embedTick();
 }
 
