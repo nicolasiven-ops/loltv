@@ -20,6 +20,7 @@ const HAS_NODE = typeof require === "function";
 const ipc = HAS_NODE ? require("electron").ipcRenderer : null;
 const lcu = HAS_NODE ? require("./lcu") : null;
 const gamecfg = HAS_NODE ? require("./gamecfg") : null;
+const log = HAS_NODE ? require("./logger").log : () => {};
 
 const $ = (id) => document.getElementById(id);
 
@@ -254,6 +255,7 @@ async function directLaunch(gameId, platformId) {
   const gameDir = path.join(install, "Game");
   const exe = path.join(gameDir, "League of Legends.exe");
   if (!fs.existsSync(exe)) throw new Error(`Spiel-Exe nicht gefunden (${exe})`);
+  log("directLaunch: exe=", exe, "rofl=", rofl);
   const child = spawn(exe, [rofl], { cwd: gameDir, detached: true, stdio: "ignore" });
   child.unref();
 }
@@ -296,10 +298,14 @@ async function playReplay(btn, gameId, platformId) {
     // Replay 1:1 hineinpasst und Mausklicks pixelgenau sitzen.
     try {
       const size = ipc ? await ipc.invoke("stage-size") : null;
+      log("playReplay: installDir=", lcu.installDir(), "stage=", JSON.stringify(size));
       if (size && gamecfg && lcu.installDir()) {
         gamecfg.applyStageResolution(lcu.installDir(), size.width, size.height);
+        log("playReplay: game.cfg + PersistedSettings gepatcht");
       }
-    } catch { /* zur Not startet das Replay mit der alten Auflösung */ }
+    } catch (err) {
+      log("playReplay: Config-Patch fehlgeschlagen:", err.message);
+    }
 
     // Immer direkt über die Spiel-Exe starten: Nur so gilt unsere
     // game.cfg-Auflösung — beim Start über den Client (watch) überschreibt
@@ -309,7 +315,8 @@ async function playReplay(btn, gameId, platformId) {
     searchStatus("Replay startet …");
     try {
       await directLaunch(gameId, platformId);
-    } catch {
+    } catch (err) {
+      log("playReplay: Direktstart fehlgeschlagen (", err.message, ") — Fallback watch");
       searchStatus("Direktstart nicht möglich — starte über den Client …");
       await lcu.request("POST", `/lol-replays/v1/rofls/${gameId}/watch`, body).catch(() => {});
     }

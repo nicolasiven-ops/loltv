@@ -60,8 +60,18 @@ function init() {
     PostMessageW: user32.func("PostMessageW", "bool",
       ["uint64_t", "uint32_t", "uint64_t", "int64_t"]),
     ClipCursor: user32.func("ClipCursor", "bool", ["void*"]),
+    IsIconic: user32.func("IsIconic", "bool", ["uint64_t"]),
   };
   return true;
+}
+
+function isIconic(hwnd) {
+  return Boolean(isAlive(hwnd) && fns.IsIconic(hwnd));
+}
+
+// Fensterstil (für Diagnose-Logging).
+function windowStyle(hwnd) {
+  return isAlive(hwnd) ? (fns.GetWindowLongW(hwnd, GWL_STYLE) >>> 0).toString(16) : "0";
 }
 
 // Maus-Fessel des Spiels lösen: League sperrt den Cursor im Fenstermodus auf
@@ -133,6 +143,6 @@ function detach() {
 }
 
 module.exports = {
-  available, findGame, isAlive, foreground, windowRect,
+  available, findGame, isAlive, foreground, windowRect, isIconic, windowStyle,
   attach, moveToScreen, closeWindow, releaseCursorClip, detach,
 };

@@ -5,3 +5,4 @@ dist/
 *.spec
 .venv/
 node_modules/
+overlay/loltv.log

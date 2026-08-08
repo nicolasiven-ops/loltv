@@ -16,6 +16,7 @@
 
 const { app, BrowserWindow, globalShortcut, ipcMain, screen } = require("electron");
 const embed = require("./embed");
+const { log, reset: resetLog } = require("./logger");
 
 // Replay-/Live-Client-API antwortet mit selbstsigniertem Zertifikat.
 app.commandLine.appendSwitch("ignore-certificate-errors");
@@ -96,17 +97,24 @@ function embedTick() {
   if (!gameHwnd && replayApiUp) {
     const found = embed.findGame();
     if (found) {
-      // Vollbild nie andocken — nur Fenster (WindowMode=1) sind dockbar.
-      // Der Nutzer bekommt im Studio den Hinweis, im ESC-Menü auf
-      // „Fenster“ zu stellen; sobald das passiert, dockt der nächste Tick.
-      if (coversADisplay(embed.windowRect(found))) {
+      const rect = embed.windowRect(found);
+      const iconic = embed.isIconic(found);
+      log("embedTick: gefunden hwnd=", found, "rect=", JSON.stringify(rect),
+        "style=0x" + embed.windowStyle(found), "iconic=", iconic);
+      // Vollbild oder minimiert (Vollbild-Spiele minimieren sich bei
+      // Fokusverlust!) nie andocken — nur ein echtes Fenster ist dockbar.
+      // Im Studio erscheint der Hinweis, im ESC-Menü auf „Fenster“ zu
+      // stellen; sobald das passiert, dockt der nächste Tick.
+      if (iconic || coversADisplay(rect)) {
         if (!fullscreenBlocked) {
           fullscreenBlocked = true;
+          log("embedTick: blockiert (Vollbild/minimiert)");
           sendStatus();
         }
         return;
       }
       fullscreenBlocked = false;
+      log("embedTick: docke an");
       const host = studio.getNativeWindowHandle().readBigUInt64LE(0);
       embed.attach(found, host);
       gameHwnd = found;
@@ -253,6 +261,8 @@ ipcMain.on("win-control", (_ev, action) => {
 });
 
 app.whenReady().then(() => {
+  resetLog();
+  log("LoLTV startet, Modus:", FULLSCREEN_MODE ? "fullscreen" : "studio");
   if (FULLSCREEN_MODE) createFullscreenOverlay();
   else createStudio();
 
