@@ -12,7 +12,7 @@
 
 const API = "https://127.0.0.1:2999";
 const POLL_MS = 500;
-const LCU_RETRY_MS = 4000;
+const LCU_RETRY_MS = 2500;
 
 // In Electron vorhanden; beim Öffnen im normalen Browser (Design-Vorschau)
 // fehlt require — dann laufen nur die UI-Teile ohne IPC/LCU.
@@ -31,6 +31,7 @@ const QUEUES = {
 let apiConnected = false;
 let gameEmbedded = false;
 let seeking = false;
+let gameflowPhase = "None"; // Phase des League-Clients (ChampSelect, InProgress …)
 let currentPatch = null;   // z. B. "15.16" (vom Client)
 let ddVersion = null;      // Data-Dragon-Version für Icons
 let champById = {};        // championId -> { key, name }
@@ -118,6 +119,15 @@ async function lcuTick() {
       .then((v) => { currentPatch = String(v).split(".").slice(0, 2).join("."); })
       .catch(() => { currentPatch = null; });
   }
+  // Gameflow-Phase überwachen: Steht ein eigenes Spiel an, meldet der
+  // Main-Prozess sich per "replay-autoclosed", nachdem er das Replay
+  // geschlossen hat.
+  if (ok) {
+    try {
+      gameflowPhase = (await lcu.request("GET", "/lol-gameflow/v1/gameflow-phase")) || "None";
+    } catch { gameflowPhase = "None"; }
+    if (ipc) ipc.send("gameflow-phase", gameflowPhase);
+  }
   setStatus();
 }
 
@@ -188,7 +198,8 @@ function matchRow(g) {
     </div>
     <div class="m-kda">${s.kills || 0}/<span class="d">${s.deaths || 0}</span>/${s.assists || 0} · ${cs} CS</div>
     <div class="m-patch">${gamePatch}</div>
-    <button class="m-play" data-game="${g.gameId}" ${playable ? "" : "disabled title='Anderer Patch — nicht mehr abspielbar'"}>
+    <button class="m-play" data-game="${g.gameId}" data-platform="${g.platformId || ""}"
+      ${playable ? "" : "disabled title='Anderer Patch — nicht mehr abspielbar'"}>
       ${playable ? "▶ Ansehen" : "Patch " + gamePatch}
     </button>
   </div>`;
@@ -196,14 +207,53 @@ function matchRow(g) {
 
 function bindPlayButtons() {
   for (const btn of document.querySelectorAll(".m-play[data-game]")) {
-    btn.addEventListener("click", () => playReplay(btn, btn.dataset.game));
+    btn.addEventListener("click", () => playReplay(btn, btn.dataset.game, btn.dataset.platform));
   }
 }
 
 // ------------------------------------------------- Replay laden & starten
 
-async function playReplay(btn, gameId) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Warten, bis das Replay wirklich läuft (Replay-API antwortet / angedockt).
+async function waitForReplay(ms) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (apiConnected || gameEmbedded) return true;
+    await sleep(1000);
+  }
+  return apiConnected || gameEmbedded;
+}
+
+// Fallback: die heruntergeladene .rofl direkt mit der Spiel-Exe starten,
+// falls der Start über die LCU-API hängen bleibt.
+async function directLaunch(gameId, platformId) {
+  const fs = require("fs");
+  const path = require("path");
+  const { spawn } = require("child_process");
+
+  const replayDir = await lcu.request("GET", "/lol-replays/v1/rofls/path");
+  let rofl = path.join(replayDir, `${platformId}-${gameId}.rofl`);
+  if (!fs.existsSync(rofl)) {
+    const hit = fs.readdirSync(replayDir)
+      .find((f) => f.includes(String(gameId)) && f.endsWith(".rofl"));
+    if (!hit) throw new Error("Replay-Datei nicht im Replay-Ordner gefunden");
+    rofl = path.join(replayDir, hit);
+  }
+  const install = lcu.installDir();
+  if (!install) throw new Error("League-Installationsordner unbekannt");
+  const gameDir = path.join(install, "Game");
+  const exe = path.join(gameDir, "League of Legends.exe");
+  if (!fs.existsSync(exe)) throw new Error(`Spiel-Exe nicht gefunden (${exe})`);
+  const child = spawn(exe, [rofl], { cwd: gameDir, detached: true, stdio: "ignore" });
+  child.unref();
+}
+
+async function playReplay(btn, gameId, platformId) {
   if (playBusy) return;
+  if (["ChampSelect", "GameStart", "InProgress", "Reconnect"].includes(gameflowPhase)) {
+    return searchStatus("Du bist gerade in einem Spiel — erst fertig spielen 😉", true);
+  }
   playBusy = true;
   const oldLabel = btn.textContent;
   const body = { componentType: "replay-button_match-details" };
@@ -213,18 +263,13 @@ async function playReplay(btn, gameId) {
     searchStatus("Replay wird heruntergeladen …");
     await lcu.request("POST", `/lol-replays/v1/rofls/${gameId}/download`, body).catch(() => {});
 
-    // Auf den Download warten, dann den Replay-Client starten.
+    // Auf den Download warten.
     const deadline = Date.now() + 120000;
-    let launched = false;
+    let ready = false;
     while (Date.now() < deadline) {
       const md = await lcu.request("GET", `/lol-replays/v1/metadata/${gameId}`).catch(() => null);
       const state = md && md.state;
-      if (state === "watch") {
-        searchStatus("Replay startet — Fenster wird gleich angedockt …");
-        await lcu.request("POST", `/lol-replays/v1/rofls/${gameId}/watch`, body);
-        launched = true;
-        break;
-      }
+      if (state === "watch") { ready = true; break; }
       if (state === "incompatible" || state === "unsupported") {
         throw new Error("Replay ist mit dem aktuellen Patch nicht kompatibel");
       }
@@ -234,10 +279,22 @@ async function playReplay(btn, gameId) {
       if (state === "downloading" && md.downloadProgress != null) {
         searchStatus(`Replay wird heruntergeladen … ${md.downloadProgress} %`);
       }
-      await new Promise((r) => setTimeout(r, 1000));
+      await sleep(1000);
     }
-    if (!launched) throw new Error("Zeitüberschreitung beim Download");
-    btn.textContent = "✔ gestartet";
+    if (!ready) throw new Error("Zeitüberschreitung beim Download");
+
+    // Start über den Client; wenn danach nichts passiert, direkt starten.
+    searchStatus("Replay-Client startet …");
+    await lcu.request("POST", `/lol-replays/v1/rofls/${gameId}/watch`, body).catch(() => {});
+    if (!(await waitForReplay(20000))) {
+      searchStatus("Start über den Client hakt — starte die .rofl direkt …");
+      await directLaunch(gameId, platformId);
+      if (!(await waitForReplay(40000))) {
+        throw new Error("Replay-Client startet nicht (läuft evtl. schon ein Spiel oder ein anderes Replay?)");
+      }
+    }
+    searchStatus("");
+    btn.textContent = "✔ läuft";
   } catch (err) {
     searchStatus(`Abspielen fehlgeschlagen: ${err.message}`, true);
     btn.textContent = oldLabel;
@@ -274,6 +331,9 @@ if (ipc) {
   ipc.on("embed-status", (_ev, { embedded }) => {
     gameEmbedded = embedded;
     setStatus();
+  });
+  ipc.on("replay-autoclosed", () => {
+    searchStatus("Replay beendet — dein eigenes Spiel startet. Danach einfach wieder ▶ klicken. Viel Erfolg! 🍀");
   });
   for (const [id, action] of [["btn-min", "minimize"], ["btn-max", "maximize"], ["btn-close", "close"]]) {
     $(id).addEventListener("click", () => ipc.send("win-control", action));

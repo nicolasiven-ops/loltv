@@ -51,8 +51,18 @@ function init() {
       ["uint64_t", "uint64_t", "int32_t", "int32_t", "int32_t", "int32_t", "uint32_t"]),
     ShowWindow: user32.func("ShowWindow", "bool", ["uint64_t", "int32_t"]),
     GetForegroundWindow: user32.func("GetForegroundWindow", "uint64_t", []),
+    PostMessageW: user32.func("PostMessageW", "bool",
+      ["uint64_t", "uint32_t", "uint64_t", "int64_t"]),
   };
   return true;
+}
+
+// Fenster höflich schließen (WM_CLOSE) — der Replay-Client beendet sich dann
+// selbst. Wird genutzt, um das Replay freizugeben, bevor ein echtes Spiel
+// startet.
+const WM_CLOSE = 0x0010;
+function closeWindow(hwnd) {
+  if (isAlive(hwnd)) fns.PostMessageW(hwnd, WM_CLOSE, 0n, 0n);
 }
 
 function findGame() {
@@ -96,4 +106,4 @@ function detach() {
   saved = null;
 }
 
-module.exports = { available, findGame, isAlive, foreground, attach, moveToScreen, detach };
+module.exports = { available, findGame, isAlive, foreground, attach, moveToScreen, closeWindow, detach };

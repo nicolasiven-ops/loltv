@@ -14,6 +14,7 @@ const fs = require("fs");
 const path = require("path");
 
 let creds = null; // { port, token }
+let leagueDir = null; // League-Installationsordner (für Direktstart der Spiel-Exe)
 
 function fromProcess() {
   return new Promise((resolve) => {
@@ -26,6 +27,8 @@ function fromProcess() {
         if (err || !stdout) return resolve(null);
         const port = /--app-port=(\d+)/.exec(stdout);
         const token = /--remoting-auth-token=([\w-]+)/.exec(stdout);
+        const exe = /"?([A-Za-z]:\\[^"]*?)\\LeagueClientUx\.exe/.exec(stdout);
+        if (exe) leagueDir = exe[1];
         resolve(port && token ? { port: port[1], token: token[1] } : null);
       }
     );
@@ -40,7 +43,10 @@ function fromLockfile() {
   for (const file of candidates) {
     try {
       const parts = fs.readFileSync(file, "utf8").trim().split(":");
-      if (parts.length >= 5) return { port: parts[2], token: parts[3] };
+      if (parts.length >= 5) {
+        leagueDir = path.dirname(file);
+        return { port: parts[2], token: parts[3] };
+      }
     } catch { /* nächster Kandidat */ }
   }
   return null;
@@ -54,6 +60,7 @@ async function rawRequest(c, method, apiPath, body) {
       "Content-Type": "application/json",
     },
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(10000),
   });
   if (!resp.ok) {
     const err = new Error(`LCU ${resp.status} ${apiPath}`);
@@ -98,4 +105,8 @@ async function request(method, apiPath, body) {
   }
 }
 
-module.exports = { connect, connected, request };
+function installDir() {
+  return leagueDir;
+}
+
+module.exports = { connect, connected, request, installDir };

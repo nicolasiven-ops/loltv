@@ -93,7 +93,9 @@ function hudVisibilityTick() {
   if (!studio || studio.isDestroyed() || !hud || hud.isDestroyed()) return;
   const fg = embed.foreground();
   const ours = studio.isFocused() || (gameHwnd !== 0n && fg === gameHwnd);
-  const shouldShow = ours && !studio.isMinimized();
+  // Erst zeigen, wenn ein Replay angedockt ist — sonst schwebt der
+  // HUD-Status-Chip über der Suchansicht.
+  const shouldShow = ours && !studio.isMinimized() && gameHwnd !== 0n;
   if (shouldShow && !hud.isVisible()) hud.showInactive();
   else if (!shouldShow && hud.isVisible()) hud.hide();
 }
@@ -165,6 +167,22 @@ function createFullscreenOverlay() {
 
 ipcMain.on("replay-api", (_ev, up) => {
   replayApiUp = Boolean(up);
+});
+
+// Gameflow-Phase des League-Clients (vom Studio-Renderer gemeldet). Steht
+// ein echtes Spiel an, wird das laufende Replay sofort geschlossen — es kann
+// nur eine Spielinstanz geben, und das Live-Game hat Vorrang. Dank des
+// replayApiUp-Checks beim Andocken ist gameHwnd garantiert ein Replay.
+const BUSY_PHASES = new Set(["ChampSelect", "GameStart", "InProgress", "Reconnect"]);
+
+ipcMain.on("gameflow-phase", (_ev, phase) => {
+  if (!BUSY_PHASES.has(phase)) return;
+  if (gameHwnd && embed.isAlive(gameHwnd)) {
+    embed.closeWindow(gameHwnd);
+    if (studio && !studio.isDestroyed()) {
+      studio.webContents.send("replay-autoclosed");
+    }
+  }
 });
 
 ipcMain.on("win-control", (_ev, action) => {
