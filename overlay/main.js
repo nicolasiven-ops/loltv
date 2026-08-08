@@ -101,11 +101,13 @@ function embedTick() {
       const iconic = embed.isIconic(found);
       log("embedTick: gefunden hwnd=", found, "rect=", JSON.stringify(rect),
         "style=0x" + embed.windowStyle(found), "iconic=", iconic);
-      // Vollbild oder minimiert (Vollbild-Spiele minimieren sich bei
-      // Fokusverlust!) nie andocken — nur ein echtes Fenster ist dockbar.
+      // Vollbild, minimiert (Vollbild-Spiele minimieren sich bei
+      // Fokusverlust!) oder im Übergang (winziges Rect, z. B. 1×1 beim
+      // Beenden) nie andocken — nur ein echtes, brauchbares Fenster.
       // Im Studio erscheint der Hinweis, im ESC-Menü auf „Fenster“ zu
       // stellen; sobald das passiert, dockt der nächste Tick.
-      if (iconic || coversADisplay(rect)) {
+      const tooSmall = !rect || rect.width < 500 || rect.height < 300;
+      if (iconic || tooSmall || coversADisplay(rect)) {
         if (!fullscreenBlocked) {
           fullscreenBlocked = true;
           log("embedTick: blockiert (Vollbild/minimiert)");

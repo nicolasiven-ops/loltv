@@ -12,6 +12,7 @@
 const { execFile } = require("child_process");
 const fs = require("fs");
 const path = require("path");
+const { log } = require("./logger");
 
 let creds = null; // { port, token }
 let leagueDir = null; // League-Installationsordner (für Direktstart der Spiel-Exe)
@@ -21,14 +22,22 @@ function fromProcess() {
     execFile(
       "powershell.exe",
       ["-NoProfile", "-Command",
-        "Get-CimInstance Win32_Process -Filter \"Name='LeagueClientUx.exe'\" | Select-Object -ExpandProperty CommandLine"],
+        "Get-CimInstance Win32_Process -Filter \"Name='LeagueClientUx.exe'\" | Select-Object -First 1 | ForEach-Object { $_.ExecutablePath + '|CMDLINE|' + $_.CommandLine }"],
       { windowsHide: true, timeout: 8000 },
       (err, stdout) => {
         if (err || !stdout) return resolve(null);
-        const port = /--app-port=(\d+)/.exec(stdout);
-        const token = /--remoting-auth-token=([\w-]+)/.exec(stdout);
-        const exe = /"?([A-Za-z]:\\[^"]*?)\\LeagueClientUx\.exe/.exec(stdout);
-        if (exe) leagueDir = exe[1];
+        // Install-Ordner bevorzugt aus dem exakten Exe-Pfad, sonst aus der
+        // Kommandozeile (tolerant gegenüber /- und \-Pfaden).
+        const [exePath, cmdline = ""] = stdout.split("|CMDLINE|");
+        if (exePath && exePath.trim().toLowerCase().endsWith("leagueclientux.exe")) {
+          leagueDir = path.dirname(exePath.trim());
+        } else {
+          const exe = /"?([A-Za-z]:[\\/][^"]*?)[\\/]LeagueClientUx\.exe/i.exec(stdout);
+          if (exe) leagueDir = exe[1].replace(/\//g, "\\");
+        }
+        const source = cmdline || stdout;
+        const port = /--app-port=(\d+)/.exec(source);
+        const token = /--remoting-auth-token=([\w-]+)/.exec(source);
         resolve(port && token ? { port: port[1], token: token[1] } : null);
       }
     );
@@ -84,6 +93,14 @@ async function connect() {
   try {
     await rawRequest(found, "GET", "/lol-gameflow/v1/gameflow-phase");
     creds = found;
+    // Letzte Rettung für den Install-Ordner: der Client kennt ihn selbst.
+    if (!leagueDir) {
+      try {
+        const dir = await rawRequest(creds, "GET", "/data-store/v1/install-dir");
+        if (typeof dir === "string" && dir) leagueDir = dir.replace(/\//g, "\\");
+      } catch { /* bleibt ggf. null — directLaunch meldet das dann */ }
+    }
+    log("lcu: verbunden, installDir=", leagueDir);
     return true;
   } catch {
     return false;
