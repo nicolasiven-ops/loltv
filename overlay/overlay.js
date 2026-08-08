@@ -27,7 +27,8 @@ const TAKEOVER = {
   interfaceMinimap: true,
   interfaceAnnounce: true,
   interfaceKillCallouts: true,
-  interfaceNeutralTimers: true,
+  interfaceNeutralTimers: false, // eigene Spawn-/Buff-Timer oben rechts
+  interfaceTarget: true,         // Champion-Panel unten links (bei Auswahl)
   cameraAttached: false,
 };
 
@@ -138,6 +139,31 @@ function teamStats(players, events, now) {
   return stats;
 }
 
+// Spawn-Countdowns für die Objective-Anzeige oben rechts. Baron spawnt bei
+// 20:00 und 6 min nach jedem Kill; Drachen ab 5:00 im 5-Minuten-Takt, nach
+// der Seele (4 Drachen eines Teams) kommt stattdessen der Elder (6 min).
+function spawnTimers(stats, events, now) {
+  const chips = [];
+  const baronKills = events.filter((e) => e.EventName === "BaronKill");
+  const baronNext = baronKills.length
+    ? baronKills[baronKills.length - 1].EventTime + 360
+    : 1200;
+  const baronLeft = baronNext - now;
+  if (baronLeft > 0 && baronLeft <= 300) {
+    chips.push({ label: "BARON", cls: "spawn", left: baronLeft });
+  }
+  const dragonKills = events.filter((e) => e.EventName === "DragonKill");
+  const soul = stats.ORDER.drakes.length >= 4 || stats.CHAOS.drakes.length >= 4;
+  const dragonNext = dragonKills.length
+    ? dragonKills[dragonKills.length - 1].EventTime + (soul ? 360 : 300)
+    : 300;
+  const dragonLeft = dragonNext - now;
+  if (dragonLeft > 0 && dragonLeft <= 360) {
+    chips.push({ label: soul ? "ELDER" : "DRACHE", cls: "spawn", left: dragonLeft });
+  }
+  return chips;
+}
+
 // Geschätztes Team-Gold (die API gibt im Replay kein echtes Gold her):
 // Startgold + passives Einkommen ab 1:50 + grobe Werte je CS/Kill/Assist.
 function estimatedGold(players, team, now) {
@@ -221,12 +247,17 @@ function render(data) {
       .join("");
   }
 
-  // Aktive Baron-/Elder-Buffs mit Countdown.
-  for (const [team, el] of [["ORDER", $("buffs-blue")], ["CHAOS", $("buffs-red")]]) {
-    el.innerHTML = stats[team].buffs
-      .map((b) => `<div class="buff ${b.cls}">${b.label} ${fmtClock(b.left)}</div>`)
-      .join("");
+  // Objective-Panel oben rechts: aktive Buffs (mit Team-Farbe) + Spawns.
+  const chips = [];
+  for (const [team, side] of [["ORDER", "blue"], ["CHAOS", "red"]]) {
+    for (const b of stats[team].buffs) {
+      chips.push(`<div class="chip ${b.cls} ${side}">${b.label} ${fmtClock(b.left)}</div>`);
+    }
   }
+  for (const c of spawnTimers(stats, events, now)) {
+    chips.push(`<div class="chip ${c.cls}">${c.label} ${fmtClock(c.left)}</div>`);
+  }
+  $("objpanel").innerHTML = chips.join("");
 
   // Geschätzte Golddifferenz (die API liefert kein echtes Gold, s. estimatedGold).
   const diff = estimatedGold(players, "ORDER", now) - estimatedGold(players, "CHAOS", now);
@@ -248,7 +279,7 @@ function render(data) {
 function setConnected(on) {
   connected = on;
   $("status").classList.toggle("hidden", on);
-  for (const id of ["scorebar", "bottomstrip"]) {
+  for (const id of ["scorebar", "bottomstrip", "objpanel"]) {
     $(id).classList.toggle("hidden", !on);
   }
 }
