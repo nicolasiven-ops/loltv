@@ -22,8 +22,6 @@ function render(s) {
   }
   $("scale").value = s.hudScale;
   $("scale-val").textContent = `${s.hudScale} %`;
-  $("minimap").value = s.minimapScale;
-  $("minimap-val").textContent = `${s.minimapScale} %`;
 }
 
 for (const el of document.querySelectorAll(".layout")) {
@@ -43,11 +41,6 @@ for (const box of document.querySelectorAll("input[data-key]")) {
 $("scale").addEventListener("input", () => {
   $("scale-val").textContent = `${$("scale").value} %`;
   apply({ hudScale: Number($("scale").value) });
-});
-
-$("minimap").addEventListener("input", () => {
-  $("minimap-val").textContent = `${$("minimap").value} %`;
-  apply({ minimapScale: Number($("minimap").value) });
 });
 
 $("reset").addEventListener("click", () => {

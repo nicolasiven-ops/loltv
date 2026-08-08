@@ -11,10 +11,13 @@ const path = require("path");
 const FILE = path.join(__dirname, "settings.json");
 
 const DEFAULTS = {
-  // Anordnung der Spieler-Kacheln:
-  //   "bottom" = Leiste unten Mitte (LPL-Stil)
-  //   "sides"  = Spalten links/rechts (LCK-Stil)
-  playerLayout: "bottom",
+  // Spieler-Anzeige:
+  //   "native" = Frames des Spectator-Clients an den Seiten (mit HP, Mana,
+  //              Summoner Spells und Items) plus Champion-Detailpanel unten
+  //              links — die Daten dafür gibt die API nicht her, das Spiel
+  //              zeichnet sie selbst. LoLTV hält sich dann komplett raus.
+  //   "bottom" = eigene LoLTV-Leiste unten Mitte (LPL-Stil), Spiel-Frames aus
+  playerLayout: "native",
   showScorebar: true,     // Score-Bar oben Mitte
   showObjectives: true,   // Buff-/Spawn-Timer oben rechts
   showGold: true,         // geschätztes Gold in der Score-Bar
@@ -24,8 +27,10 @@ const DEFAULTS = {
   // Optik des Spiels selbst (wird per Replay-API gesetzt)
   fogOfWar: false,        // false = Karte komplett aufgedeckt
   nativeMinimap: true,    // Minimap des Spiels
-  nativeChampionPanel: true, // Champion-Detailpanel unten links (interfaceFrames)
-  minimapScale: 100,      // Minimap-Größe in Prozent (via game.cfg, ab Neustart)
+  // Minimap-Größe: Der Schlüssel in der game.cfg ist noch nicht belegt
+  // (MinimapScale zeigte keine Wirkung), daher aktuell ohne Bedienelement.
+  // gamecfg.inspectHud() loggt die echten Schlüssel beim Replay-Start.
+  minimapScale: 100,
   killCallouts: true,     // Kill-Banner des Spiels
   floatingText: true,     // Schadenszahlen
 

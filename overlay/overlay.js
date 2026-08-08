@@ -34,10 +34,11 @@ function takeoverProps() {
   return {
     fogOfWar: settings.fogOfWar,
     interfaceScoreboard: false,
-    // Champion-Detailpanel unten links (Fähigkeiten, Werte, Items des
-    // ausgewählten Champions) — das steckt im Spiel-HUD hinter
-    // „interfaceFrames“ und war bisher pauschal aus.
-    interfaceFrames: settings.nativeChampionPanel,
+    // interfaceFrames steuert BEIDES: die Spectator-Frames an den Seiten und
+    // das Champion-Detailpanel unten links. Entweder das Spiel zeichnet die
+    // Spieler-Anzeige (dann hält sich LoLTV raus) oder wir — nie beides,
+    // sonst überlagern sich die Anzeigen.
+    interfaceFrames: settings.playerLayout === "native",
     interfaceScore: false,
     interfaceTimeline: false,
     interfaceReplay: false,
@@ -319,16 +320,16 @@ function render(data) {
 
 function setConnected(on) {
   connected = on;
+  const ownTiles = settings.playerLayout === "bottom";
   $("status").classList.toggle("hidden", on);
-  $("bottomstrip").classList.toggle("hidden", !on);
+  $("bottomstrip").classList.toggle("hidden", !on || !ownTiles);
   $("scorebar").classList.toggle("hidden", !on || !settings.showScorebar);
   $("objpanel").classList.toggle("hidden", !on || !settings.showObjectives);
 }
 
 // Einstellungen aufs HUD anwenden: Layout, Sichtbarkeiten, Größe.
 function applySettings() {
-  document.body.classList.toggle("layout-sides", settings.playerLayout === "sides");
-  document.body.classList.toggle("layout-bottom", settings.playerLayout !== "sides");
+  document.body.classList.toggle("layout-bottom", settings.playerLayout === "bottom");
   document.body.classList.toggle("no-gold", !settings.showGold);
   applyScale();
   if (connected) setConnected(true);

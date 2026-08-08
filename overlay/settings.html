@@ -104,17 +104,7 @@
   <main>
     <h2>Spieler-Anzeige</h2>
     <div class="layouts">
-      <div class="layout" data-layout="bottom">
-        <div class="preview bottom">
-          <i class="bar"></i>
-          <i class="p" style="left:22%"></i><i class="p" style="left:30%"></i>
-          <i class="p" style="left:38%"></i><i class="p" style="left:46%"></i>
-          <i class="p" style="left:54%"></i><i class="p" style="left:64%"></i>
-        </div>
-        <div class="name">Unten</div>
-        <div class="hint">LPL-Stil</div>
-      </div>
-      <div class="layout" data-layout="sides">
+      <div class="layout" data-layout="native">
         <div class="preview sides">
           <i class="bar"></i>
           <i class="p" style="left:5%;top:16px"></i><i class="p" style="left:5%;top:26px"></i>
@@ -122,9 +112,24 @@
           <i class="p" style="right:5%;top:16px"></i><i class="p" style="right:5%;top:26px"></i>
           <i class="p" style="right:5%;top:36px"></i><i class="p" style="right:5%;top:46px"></i>
         </div>
-        <div class="name">Seiten</div>
-        <div class="hint">LCK-Stil</div>
+        <div class="name">Spiel-Frames</div>
+        <div class="hint">Seiten, mit HP &amp; Spells</div>
       </div>
+      <div class="layout" data-layout="bottom">
+        <div class="preview bottom">
+          <i class="bar"></i>
+          <i class="p" style="left:22%"></i><i class="p" style="left:30%"></i>
+          <i class="p" style="left:38%"></i><i class="p" style="left:46%"></i>
+          <i class="p" style="left:54%"></i><i class="p" style="left:64%"></i>
+        </div>
+        <div class="name">LoLTV-Leiste</div>
+        <div class="hint">unten, LPL-Stil</div>
+      </div>
+    </div>
+    <div class="hintline">
+      „Spiel-Frames“ nutzt die Anzeige des Spectator-Clients — inklusive
+      Lebens-/Manabalken, Summoner Spells und dem Champion-Panel unten links.
+      Die LoLTV-Leiste blendet sie aus und zeigt stattdessen eigene Kacheln.
     </div>
 
     <h2>HUD-Elemente</h2>
@@ -146,15 +151,8 @@
     <h2>Optik des Spiels</h2>
     <label class="row"><input type="checkbox" data-key="fogOfWar" data-invert="1">
       <div><div class="txt">Karte aufgedeckt</div><div class="sub">Fog of War aus (Beobachter-Sicht)</div></div></label>
-    <label class="row"><input type="checkbox" data-key="nativeChampionPanel">
-      <div><div class="txt">Champion-Details unten links</div><div class="sub">Panel des Spiels für den ausgewählten Champion</div></div></label>
     <label class="row"><input type="checkbox" data-key="nativeMinimap">
       <div><div class="txt">Minimap</div></div></label>
-    <div class="slider">
-      <input type="range" id="minimap" min="30" max="150" step="5">
-      <span class="val" id="minimap-val">100 %</span>
-    </div>
-    <div class="hintline">Minimap-Größe greift ab dem nächsten Replay-Start.</div>
     <label class="row"><input type="checkbox" data-key="killCallouts">
       <div><div class="txt">Kill-Banner</div></div></label>
     <label class="row"><input type="checkbox" data-key="floatingText">
