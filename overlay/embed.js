@@ -70,6 +70,7 @@ function init() {
     AttachThreadInput: user32.func("AttachThreadInput", "bool",
       ["uint32_t", "uint32_t", "bool"]),
     SetFocus: user32.func("SetFocus", "uint64_t", ["uint64_t"]),
+    GetFocus: user32.func("GetFocus", "uint64_t", []),
     GetCurrentThreadId: kernel32.func("GetCurrentThreadId", "uint32_t", []),
   };
   return true;
@@ -115,14 +116,20 @@ function windowStyle(hwnd) {
   return isAlive(hwnd) ? (fns.GetWindowLongW(hwnd, GWL_STYLE) >>> 0).toString(16) : "0";
 }
 
-// Spielfenster als Kind-Fenster ins Studio einbetten.
+// Spielfenster als Kind-Fenster ins Studio einbetten. Die Input-Queues
+// beider Threads werden dauerhaft verbunden — nur so funktionieren Fokus,
+// Maus-Capture und damit KLICKS im fremden Kind-Fenster zuverlässig
+// (Hover ginge auch ohne, Button-Klicks nicht).
 function attach(gameHwnd, hostHwnd) {
   const style = fns.GetWindowLongW(gameHwnd, GWL_STYLE);
-  saved = { hwnd: gameHwnd, style };
+  const gameThread = fns.GetWindowThreadProcessId(gameHwnd, null);
+  const ownThread = fns.GetCurrentThreadId();
+  saved = { hwnd: gameHwnd, style, gameThread, ownThread };
   const childStyle = (style & ~(WS_POPUP | WS_CAPTION | WS_THICKFRAME
     | WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX)) | WS_CHILD;
   fns.SetWindowLongW(gameHwnd, GWL_STYLE, childStyle | 0);
   fns.SetParent(gameHwnd, hostHwnd);
+  fns.AttachThreadInput(ownThread, gameThread, true);
   fns.ShowWindow(gameHwnd, SW_SHOW);
 }
 
@@ -133,15 +140,13 @@ function moveTo(hwnd, x, y, w, h) {
     SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 }
 
-// Dem eingebetteten Spiel echten Tastatur-Fokus geben. Ein Kind-Fenster
-// eines fremden Prozesses bekommt ihn nur über AttachThreadInput.
+// Dem eingebetteten Spiel Tastatur-Fokus geben — aber nur, wenn er nicht
+// schon dort liegt: ständiges Neu-Setzen würde laufende Klick-Sequenzen
+// unterbrechen (Button-Down ohne -Up = kein Klick).
 function focusWindow(hwnd) {
   if (!isAlive(hwnd)) return;
-  const gameThread = fns.GetWindowThreadProcessId(hwnd, null);
-  const ownThread = fns.GetCurrentThreadId();
-  fns.AttachThreadInput(ownThread, gameThread, true);
+  if (BigInt(fns.GetFocus()) === hwnd) return;
   fns.SetFocus(hwnd);
-  fns.AttachThreadInput(ownThread, gameThread, false);
 }
 
 // Fenster höflich schließen (WM_CLOSE) — für den Live-Game-Vorrang.
@@ -156,7 +161,9 @@ function releaseCursorClip() {
 }
 
 function detach() {
-  if (!saved || !isAlive(saved.hwnd)) {
+  if (!saved) return;
+  fns.AttachThreadInput(saved.ownThread, saved.gameThread, false);
+  if (!isAlive(saved.hwnd)) {
     saved = null;
     return;
   }

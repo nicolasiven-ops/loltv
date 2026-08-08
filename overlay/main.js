@@ -152,16 +152,13 @@ function embedTick() {
 // Das HUD ist global „always on top“, damit es über dem angedockten
 // Spielfenster liegt. Damit es nicht über fremden Apps schwebt, wird es
 // ausgeblendet, sobald weder Studio noch Spiel im Vordergrund sind.
+// Das HUD ist ein Owned Window des Studios und liegt damit im Fensterstapel
+// immer direkt über dem Studio (inkl. des eingebetteten Kind-Spiels), aber
+// NICHT über fremden Apps — kein Always-on-top, kein Verstecken bei
+// Fokusverlust. Sichtbar, sobald ein Replay eingebettet ist.
 function hudVisibilityTick() {
   if (!studio || studio.isDestroyed() || !hud || hud.isDestroyed()) return;
-  // Mit Fokus im eingebetteten Spiel meldet Electron das Studio als
-  // unfokussiert — deshalb zählt auch das Vordergrund-Fenster (Studio-HWND).
-  const fg = embed.foreground();
-  const hostHwnd = studio.getNativeWindowHandle().readBigUInt64LE(0);
-  const ours = studio.isFocused() || fg === hostHwnd || (gameHwnd !== 0n && fg === gameHwnd);
-  // Erst zeigen, wenn ein Replay eingebettet ist — sonst schwebt der
-  // HUD-Status-Chip über der Suchansicht.
-  const shouldShow = ours && !studio.isMinimized() && gameHwnd !== 0n;
+  const shouldShow = gameHwnd !== 0n && !studio.isMinimized();
   if (shouldShow && !hud.isVisible()) hud.showInactive();
   else if (!shouldShow && hud.isVisible()) hud.hide();
 }
@@ -211,10 +208,14 @@ function createStudio() {
     focusable: false,
     skipTaskbar: true,
     hasShadow: false,
-    webPreferences: { webSecurity: false, backgroundThrottling: false },
+    webPreferences: {
+      webSecurity: false,
+      nodeIntegration: true, // fürs Diagnose-Logging aus overlay.js
+      contextIsolation: false,
+      backgroundThrottling: false,
+    },
   });
   hud.setIgnoreMouseEvents(true);
-  hud.setAlwaysOnTop(true, "screen-saver");
   hud.loadFile("overlay.html");
 
   for (const ev of ["resize", "move", "maximize", "unmaximize", "restore"]) {

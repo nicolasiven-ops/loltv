@@ -11,6 +11,11 @@ const API = "https://127.0.0.1:2999";
 const POLL_MS = 1000;
 const MOCK = new URLSearchParams(location.search).has("mock");
 
+// Diagnose-Logging (nur in Electron verfügbar, nicht in der Browser-Vorschau).
+const HAS_NODE = typeof require === "function";
+const log = HAS_NODE ? require("./logger").log : () => {};
+let eventsLogged = false;
+
 // Beim Takeover gesetzte Render-Eigenschaften: eigenes HUD statt Spiel-HUD.
 const TAKEOVER = {
   fogOfWar: false,
@@ -87,30 +92,66 @@ async function takeover() {
 
 // Turm-Namen tragen den Besitzer: _T1_ = blau (ORDER), _T2_ = rot (CHAOS).
 // Ein zerstörter T1-Turm zählt also für Rot — und umgekehrt.
-function teamStats(players, events) {
+// KillerName kommt je nach Patch als Summoner-Name ODER volle Riot-ID
+// ("Name#TAG") — das Mapping kennt beide Formen.
+const BARON_BUFF_S = 180;
+const ELDER_BUFF_S = 150;
+
+function teamStats(players, events, now) {
   const stats = {
-    ORDER: { kills: 0, towers: 0, barons: 0, drakes: [] },
-    CHAOS: { kills: 0, towers: 0, barons: 0, drakes: [] },
+    ORDER: { kills: 0, towers: 0, barons: 0, drakes: [], buffs: [] },
+    CHAOS: { kills: 0, towers: 0, barons: 0, drakes: [], buffs: [] },
   };
   const teamOf = {};
   for (const p of players) {
-    teamOf[p.summonerName] = p.team;
-    if (p.riotIdGameName) teamOf[p.riotIdGameName] = p.team;
+    for (const key of [
+      p.summonerName, p.riotIdGameName,
+      p.riotIdGameName && p.riotIdTagLine ? `${p.riotIdGameName}#${p.riotIdTagLine}` : null,
+    ]) {
+      if (key) teamOf[key] = p.team;
+    }
     stats[p.team].kills += p.scores.kills;
   }
+  const resolveTeam = (name) =>
+    teamOf[name] || teamOf[String(name || "").split("#")[0]] || null;
+
   for (const ev of events) {
     if (ev.EventName === "TurretKilled") {
-      if (ev.TurretKilled.includes("_T1_")) stats.CHAOS.towers += 1;
-      else if (ev.TurretKilled.includes("_T2_")) stats.ORDER.towers += 1;
+      if (String(ev.TurretKilled).includes("_T1_")) stats.CHAOS.towers += 1;
+      else if (String(ev.TurretKilled).includes("_T2_")) stats.ORDER.towers += 1;
     } else if (ev.EventName === "DragonKill") {
-      const team = teamOf[ev.KillerName];
-      if (team) stats[team].drakes.push(ev.DragonType);
+      const team = resolveTeam(ev.KillerName);
+      if (!team) continue;
+      stats[team].drakes.push(ev.DragonType);
+      const left = ELDER_BUFF_S - (now - ev.EventTime);
+      if (ev.DragonType === "Elder" && left > 0) {
+        stats[team].buffs.push({ label: "ELDER", cls: "elder", left });
+      }
     } else if (ev.EventName === "BaronKill") {
-      const team = teamOf[ev.KillerName];
-      if (team) stats[team].barons += 1;
+      const team = resolveTeam(ev.KillerName);
+      if (!team) continue;
+      stats[team].barons += 1;
+      const left = BARON_BUFF_S - (now - ev.EventTime);
+      if (left > 0) stats[team].buffs.push({ label: "BARON", cls: "baron", left });
     }
   }
   return stats;
+}
+
+// Geschätztes Team-Gold (die API gibt im Replay kein echtes Gold her):
+// Startgold + passives Einkommen ab 1:50 + grobe Werte je CS/Kill/Assist.
+function estimatedGold(players, team, now) {
+  let sum = 0;
+  for (const p of players) {
+    if (p.team !== team) continue;
+    const s = p.scores;
+    sum += 500
+      + Math.max(0, now - 110) * 2.04
+      + s.creepScore * 21
+      + s.kills * 300
+      + s.assists * 95;
+  }
+  return sum;
 }
 
 // ------------------------------------------------------------------ Render
@@ -158,9 +199,15 @@ function playerTile(p) {
 function render(data) {
   const players = data.allPlayers || [];
   const events = (data.events && data.events.Events) || [];
-  const stats = teamStats(players, events);
+  const now = data.gameData ? data.gameData.gameTime : 0;
+  const stats = teamStats(players, events, now);
 
-  $("clock").textContent = fmtClock(data.gameData ? data.gameData.gameTime : 0);
+  if (!eventsLogged && events.length > 0) {
+    eventsLogged = true;
+    log("hud: erste Events:", events.length, JSON.stringify(events.slice(0, 5)));
+  }
+
+  $("clock").textContent = fmtClock(now);
   $("kills-blue").textContent = stats.ORDER.kills;
   $("kills-red").textContent = stats.CHAOS.kills;
   $("towers-blue").textContent = stats.ORDER.towers;
@@ -172,6 +219,24 @@ function render(data) {
     el.innerHTML = stats[team].drakes
       .map((t) => `<div class="drake" title="${t}" style="background:${DRAKE_COLORS[t] || "#888"}"></div>`)
       .join("");
+  }
+
+  // Aktive Baron-/Elder-Buffs mit Countdown.
+  for (const [team, el] of [["ORDER", $("buffs-blue")], ["CHAOS", $("buffs-red")]]) {
+    el.innerHTML = stats[team].buffs
+      .map((b) => `<div class="buff ${b.cls}">${b.label} ${fmtClock(b.left)}</div>`)
+      .join("");
+  }
+
+  // Geschätzte Golddifferenz (die API liefert kein echtes Gold, s. estimatedGold).
+  const diff = estimatedGold(players, "ORDER", now) - estimatedGold(players, "CHAOS", now);
+  const gd = $("golddiff");
+  if (Math.abs(diff) >= 300) {
+    gd.textContent = `${diff > 0 ? "◂" : "▸"} ~${(Math.abs(diff) / 1000).toFixed(1)}k`;
+    gd.style.color = diff > 0 ? "var(--blue-bright)" : "var(--red-bright)";
+  } else {
+    gd.textContent = "ausgeglichen";
+    gd.style.color = "var(--dim)";
   }
 
   $("squad-blue").innerHTML = players.filter((p) => p.team === "ORDER")
@@ -232,12 +297,13 @@ function mockData() {
       P("CHAOS", "ON", "Rakan", "Rakan", 10, 0, 3, 8, 29),
     ],
     events: { Events: [
-      { EventName: "TurretKilled", TurretKilled: "Turret_T2_L_03_A", KillerName: "Zeus" },
-      { EventName: "TurretKilled", TurretKilled: "Turret_T2_C_05_A", KillerName: "Gumayusi" },
-      { EventName: "TurretKilled", TurretKilled: "Turret_T1_R_03_A", KillerName: "Bin" },
-      { EventName: "DragonKill", DragonType: "Ocean", KillerName: "Xun" },
-      { EventName: "DragonKill", DragonType: "Hextech", KillerName: "Xun" },
-      { EventName: "DragonKill", DragonType: "Fire", KillerName: "Oner" },
+      { EventName: "TurretKilled", TurretKilled: "Turret_T2_L_03_A", KillerName: "Zeus", EventTime: 840 },
+      { EventName: "TurretKilled", TurretKilled: "Turret_T2_C_05_A", KillerName: "Gumayusi", EventTime: 1100 },
+      { EventName: "TurretKilled", TurretKilled: "Turret_T1_R_03_A", KillerName: "Bin#LPL", EventTime: 990 },
+      { EventName: "DragonKill", DragonType: "Ocean", KillerName: "Xun#LPL", EventTime: 620 },
+      { EventName: "DragonKill", DragonType: "Hextech", KillerName: "Xun#LPL", EventTime: 940 },
+      { EventName: "DragonKill", DragonType: "Fire", KillerName: "Oner", EventTime: 780 },
+      { EventName: "BaronKill", KillerName: "Oner", EventTime: t - 65 },
     ] },
   };
 }

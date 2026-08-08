@@ -68,6 +68,15 @@
   .drakes { display: flex; gap: 4px; align-items: center; }
   .drake { width: 9px; height: 9px; transform: rotate(45deg); border-radius: 2px; }
 
+  .buffs { display: flex; flex-direction: column; gap: 3px; }
+  .buff {
+    font-size: 10px; font-weight: 700; letter-spacing: 1px;
+    padding: 2px 7px; border-radius: 3px; white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .buff.baron { color: #c8a5ff; border: 1px solid rgba(160, 110, 240, 0.55); background: rgba(120, 80, 200, 0.18); }
+  .buff.elder { color: #9fe8ff; border: 1px solid rgba(90, 190, 230, 0.55); background: rgba(60, 150, 200, 0.18); }
+
   #clockbox {
     display: flex; flex-direction: column; justify-content: center; align-items: center;
     padding: 6px 20px; min-width: 110px;
@@ -76,6 +85,7 @@
   }
   #clock { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
   #clock-label { font-size: 9px; letter-spacing: 2.5px; color: var(--gold); font-weight: 600; }
+  #golddiff { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
 
   /* ---------- Spieler-Leiste unten Mitte (LPL-Stil) ---------- */
   #bottomstrip {
@@ -166,6 +176,7 @@
 
   <div id="scorebar" class="hidden">
     <div class="sb-side blue">
+      <div class="buffs" id="buffs-blue"></div>
       <div class="sb-kills" id="kills-blue">0</div>
       <div class="sb-objs">
         <div class="sb-obj" title="Türme"><svg viewBox="0 0 16 16"><path d="M4 15V7L3 6V3h2v1h2V3h2v1h2V3h2v3l-1 1v8z"/></svg><span id="towers-blue">0</span></div>
@@ -176,8 +187,10 @@
     <div id="clockbox">
       <div id="clock">0:00</div>
       <div id="clock-label">LOLTV</div>
+      <div id="golddiff"></div>
     </div>
     <div class="sb-side red">
+      <div class="buffs" id="buffs-red"></div>
       <div class="sb-kills" id="kills-red">0</div>
       <div class="sb-objs">
         <div class="sb-obj" title="Türme"><svg viewBox="0 0 16 16"><path d="M4 15V7L3 6V3h2v1h2V3h2v1h2V3h2v3l-1 1v8z"/></svg><span id="towers-red">0</span></div>
