@@ -77,77 +77,87 @@
   #clock { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
   #clock-label { font-size: 9px; letter-spacing: 2.5px; color: var(--gold); font-weight: 600; }
 
-  /* ---------- Team-Spalten links/rechts ---------- */
-  .teamcol {
-    position: fixed; top: 50%; transform: translateY(-50%);
-    display: flex; flex-direction: column; gap: 8px;
-  }
-  #team-blue { left: 0; }
-  #team-red  { right: 0; }
-
-  .player {
-    display: flex; align-items: center; gap: 10px;
-    width: 272px; padding: 7px 10px;
+  /* ---------- Spieler-Leiste unten Mitte (LPL-Stil) ---------- */
+  #bottomstrip {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: stretch;
     background: var(--panel);
-    border-top: 1px solid var(--panel-line);
-    border-bottom: 1px solid var(--panel-line);
+    border: 1px solid var(--panel-line); border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.45);
   }
-  #team-blue .player { border-left: 3px solid var(--blue); border-radius: 0 6px 6px 0; border-right: 1px solid var(--panel-line); }
-  #team-red  .player { flex-direction: row-reverse; text-align: right; border-right: 3px solid var(--red); border-radius: 6px 0 0 6px; border-left: 1px solid var(--panel-line); }
+  .squad { display: flex; }
 
-  .portrait-wrap { position: relative; flex-shrink: 0; }
-  .portrait {
-    width: 46px; height: 46px; border-radius: 4px;
-    background: linear-gradient(135deg, #2a3242, #171c26);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; font-weight: 700; color: #6b7686;
-    overflow: hidden;
+  #divider {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 0 10px; gap: 6px;
+    border-left: 1px solid var(--panel-line);
+    border-right: 1px solid var(--panel-line);
   }
-  .portrait img { width: 100%; height: 100%; object-fit: cover; }
-  .player.dead .portrait { filter: grayscale(1) brightness(0.5); }
-  .respawn {
-    position: absolute; inset: 0;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 17px; font-weight: 700; color: #ff9d94;
-    text-shadow: 0 1px 3px #000;
+  #divider .diamond {
+    width: 10px; height: 10px; transform: rotate(45deg);
+    background: var(--gold); border-radius: 2px;
   }
-  .level {
-    position: absolute; bottom: -4px; left: -4px;
-    background: #10141c; border: 1px solid var(--gold); color: var(--gold);
-    font-size: 10px; font-weight: 700;
-    min-width: 17px; height: 17px; border-radius: 9px;
-    display: flex; align-items: center; justify-content: center;
-    padding: 0 2px;
+  #divider .mark {
+    font-size: 8px; letter-spacing: 2px; color: var(--dim); font-weight: 700;
+    writing-mode: vertical-rl; text-orientation: upright;
   }
-  #team-red .level { left: auto; right: -4px; }
 
-  .pbody { flex: 1; min-width: 0; }
-  .pname {
-    font-size: 13px; font-weight: 700; letter-spacing: 0.3px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  .tile {
+    width: 104px; padding: 8px 7px 6px;
+    display: flex; flex-direction: column; align-items: center;
   }
-  .pchamp { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px; }
-  .pstats { display: flex; gap: 8px; margin-top: 3px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  #team-red .pstats { justify-content: flex-end; }
-  .kda { font-weight: 700; }
-  .kda .d { color: var(--red-bright); }
-  .cs { color: var(--gold); }
+  .squad.blue .tile { border-bottom: 3px solid var(--blue); }
+  .squad.red  .tile { border-bottom: 3px solid var(--red); }
+  .squad .tile + .tile { border-left: 1px solid rgba(255, 255, 255, 0.05); }
 
-  .items { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
-  .items .row { display: flex; gap: 3px; }
+  .tile-top { display: flex; gap: 5px; align-items: flex-start; }
+
+  .tile-items { display: grid; grid-template-columns: repeat(2, 17px); gap: 2px; }
   .item {
-    width: 18px; height: 18px; border-radius: 3px;
+    width: 17px; height: 17px; border-radius: 3px;
     background: #1b202b; border: 1px solid rgba(255, 255, 255, 0.07);
     overflow: hidden;
   }
   .item img { width: 100%; height: 100%; }
 
-  /* ---------- Branding unten ---------- */
-  #brand {
-    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
-    font-size: 10px; letter-spacing: 3px; color: rgba(255, 255, 255, 0.28);
-    font-weight: 600;
+  .portrait-wrap { position: relative; }
+  .portrait {
+    width: 58px; height: 58px; border-radius: 4px;
+    background: linear-gradient(135deg, #2a3242, #171c26);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 700; color: #6b7686;
+    overflow: hidden;
   }
+  .portrait img { width: 100%; height: 100%; object-fit: cover; }
+  .tile.dead .portrait { filter: grayscale(1) brightness(0.45); }
+  .respawn {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 21px; font-weight: 700; color: #ff9d94;
+    text-shadow: 0 1px 4px #000;
+  }
+  .level {
+    position: absolute; bottom: -5px; right: -5px;
+    background: #10141c; border: 1px solid var(--gold); color: var(--gold);
+    font-size: 10px; font-weight: 700;
+    min-width: 18px; height: 18px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 2px;
+  }
+
+  .tile-name {
+    margin-top: 6px; max-width: 96px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .tile-stats {
+    display: flex; gap: 7px; margin-top: 2px;
+    font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .kda { font-weight: 700; }
+  .kda .d { color: var(--red-bright); }
+  .cs { color: var(--gold); }
 </style>
 </head>
 <body>
@@ -176,10 +186,14 @@
     </div>
   </div>
 
-  <div id="team-blue" class="teamcol hidden"></div>
-  <div id="team-red" class="teamcol hidden"></div>
-
-  <div id="brand" class="hidden">LOLTV</div>
+  <div id="bottomstrip" class="hidden">
+    <div id="squad-blue" class="squad blue"></div>
+    <div id="divider">
+      <div class="diamond"></div>
+      <div class="mark">LOLTV</div>
+    </div>
+    <div id="squad-red" class="squad red"></div>
+  </div>
 
   <script src="overlay.js"></script>
 </body>

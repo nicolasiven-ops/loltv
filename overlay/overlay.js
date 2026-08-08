@@ -115,7 +115,9 @@ function teamStats(players, events) {
 
 // ------------------------------------------------------------------ Render
 
-function playerCard(p, side) {
+// Eine Spieler-Kachel der unteren Leiste (LPL-Stil): Item-Raster links,
+// großes Portrait mit Level-Badge rechts, darunter Name und KDA/CS.
+function playerTile(p) {
   const key = champKey(p);
   const name = p.riotIdGameName || p.summonerName || "?";
   const s = p.scores;
@@ -126,7 +128,7 @@ function playerCard(p, side) {
   const respawn = p.isDead && p.respawnTimer > 0
     ? `<div class="respawn">${Math.ceil(p.respawnTimer)}</div>` : "";
 
-  // 7 feste Item-Slots (6 Items + Trinket), in zwei Reihen.
+  // 7 feste Slots (6 Items + Trinket) im 2-spaltigen Raster neben dem Portrait.
   const slots = Array.from({ length: 7 }, (_, i) => {
     const item = (p.items || []).find((it) => it.slot === i);
     const img = item && ddragonVersion
@@ -136,23 +138,19 @@ function playerCard(p, side) {
     return `<div class="item">${img}</div>`;
   });
 
-  return `<div class="player ${p.isDead ? "dead" : ""}">
-    <div class="portrait-wrap">
-      <div class="portrait">${portrait || key.slice(0, 1)}</div>
-      ${respawn}
-      <div class="level">${p.level}</div>
-    </div>
-    <div class="pbody">
-      <div class="pname">${name}</div>
-      <div class="pchamp">${p.championName || key}</div>
-      <div class="pstats">
-        <span class="kda">${s.kills}/<span class="d">${s.deaths}</span>/${s.assists}</span>
-        <span class="cs">${s.creepScore} CS</span>
+  return `<div class="tile ${p.isDead ? "dead" : ""}">
+    <div class="tile-top">
+      <div class="tile-items">${slots.join("")}</div>
+      <div class="portrait-wrap">
+        <div class="portrait">${portrait || key.slice(0, 1)}</div>
+        ${respawn}
+        <div class="level">${p.level}</div>
       </div>
     </div>
-    <div class="items">
-      <div class="row">${slots.slice(0, 4).join("")}</div>
-      <div class="row">${slots.slice(4).join("")}</div>
+    <div class="tile-name">${name}</div>
+    <div class="tile-stats">
+      <span class="kda">${s.kills}/<span class="d">${s.deaths}</span>/${s.assists}</span>
+      <span class="cs">${s.creepScore} CS</span>
     </div>
   </div>`;
 }
@@ -176,16 +174,16 @@ function render(data) {
       .join("");
   }
 
-  $("team-blue").innerHTML = players.filter((p) => p.team === "ORDER")
-    .map((p) => playerCard(p, "blue")).join("");
-  $("team-red").innerHTML = players.filter((p) => p.team === "CHAOS")
-    .map((p) => playerCard(p, "red")).join("");
+  $("squad-blue").innerHTML = players.filter((p) => p.team === "ORDER")
+    .map(playerTile).join("");
+  $("squad-red").innerHTML = players.filter((p) => p.team === "CHAOS")
+    .map(playerTile).join("");
 }
 
 function setConnected(on) {
   connected = on;
   $("status").classList.toggle("hidden", on);
-  for (const id of ["scorebar", "team-blue", "team-red", "brand"]) {
+  for (const id of ["scorebar", "bottomstrip"]) {
     $(id).classList.toggle("hidden", !on);
   }
 }
