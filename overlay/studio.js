@@ -19,6 +19,7 @@ const LCU_RETRY_MS = 2500;
 const HAS_NODE = typeof require === "function";
 const ipc = HAS_NODE ? require("electron").ipcRenderer : null;
 const lcu = HAS_NODE ? require("./lcu") : null;
+const gamecfg = HAS_NODE ? require("./gamecfg") : null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -118,6 +119,11 @@ async function lcuTick() {
     lcu.request("GET", "/lol-patch/v1/game-version")
       .then((v) => { currentPatch = String(v).split(".").slice(0, 2).join("."); })
       .catch(() => { currentPatch = null; });
+    // Absturz-Schutz: Liegt von einem früheren Lauf noch ein game.cfg-Backup
+    // herum und läuft gerade kein Replay, Original wiederherstellen.
+    if (!apiConnected && gamecfg && lcu.installDir()) {
+      try { gamecfg.restoreIfNeeded(lcu.installDir()); } catch { /* beim nächsten Start */ }
+    }
   }
   // Gameflow-Phase überwachen: Steht ein eigenes Spiel an, meldet der
   // Main-Prozess sich per "replay-autoclosed", nachdem er das Replay
@@ -283,6 +289,15 @@ async function playReplay(btn, gameId, platformId) {
     }
     if (!ready) throw new Error("Zeitüberschreitung beim Download");
 
+    // Spielauflösung exakt auf die Bühne setzen (mit Backup), damit das
+    // Replay 1:1 hineinpasst und Mausklicks pixelgenau sitzen.
+    try {
+      const size = ipc ? await ipc.invoke("stage-size") : null;
+      if (size && gamecfg && lcu.installDir()) {
+        gamecfg.applyStageResolution(lcu.installDir(), size.width, size.height);
+      }
+    } catch { /* zur Not startet das Replay mit der alten Auflösung */ }
+
     // Start über den Client; wenn danach nichts passiert, direkt starten.
     searchStatus("Replay-Client startet …");
     await lcu.request("POST", `/lol-replays/v1/rofls/${gameId}/watch`, body).catch(() => {});
@@ -299,6 +314,8 @@ async function playReplay(btn, gameId, platformId) {
     searchStatus(`Abspielen fehlgeschlagen: ${err.message}`, true);
     btn.textContent = oldLabel;
     btn.disabled = false;
+    // Replay läuft nicht — Original-Config direkt zurück.
+    try { if (gamecfg && lcu.installDir()) gamecfg.restoreIfNeeded(lcu.installDir()); } catch {}
   }
   playBusy = false;
 }
@@ -329,8 +346,16 @@ $("riot-id").addEventListener("keydown", (ev) => {
 
 if (ipc) {
   ipc.on("embed-status", (_ev, { embedded }) => {
+    const was = gameEmbedded;
     gameEmbedded = embedded;
     setStatus();
+    // Replay beendet → Original-game.cfg zurückschreiben. Kurz warten,
+    // weil der Replay-Client beim Beenden selbst noch in die Datei schreibt.
+    if (was && !embedded && gamecfg && lcu && lcu.installDir()) {
+      setTimeout(() => {
+        try { gamecfg.restoreIfNeeded(lcu.installDir()); } catch { /* s. Startup-Restore */ }
+      }, 3000);
+    }
   });
   ipc.on("replay-autoclosed", () => {
     searchStatus("Replay beendet — dein eigenes Spiel startet. Danach einfach wieder ▶ klicken. Viel Erfolg! 🍀");

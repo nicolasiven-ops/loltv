@@ -72,6 +72,8 @@ function embedTick() {
   if (!embed.available() || !studio || studio.isDestroyed()) return;
   if (gameHwnd && !embed.isAlive(gameHwnd)) {
     gameHwnd = 0n;
+    studio.setResizable(true);
+    studio.setMaximizable(true);
     sendStatus();
   }
   if (!gameHwnd && replayApiUp) {
@@ -80,6 +82,11 @@ function embedTick() {
       const host = studio.getNativeWindowHandle().readBigUInt64LE(0);
       embed.attach(found, host);
       gameHwnd = found;
+      // Größe einfrieren: Das Replay rendert exakt in Bühnen-Auflösung
+      // (game.cfg); ein Resize würde das Bild skalieren und Mausklicks
+      // wieder versetzen.
+      studio.setResizable(false);
+      studio.setMaximizable(false);
       layout();
       sendStatus();
     }
@@ -167,6 +174,19 @@ function createFullscreenOverlay() {
 
 ipcMain.on("replay-api", (_ev, up) => {
   replayApiUp = Boolean(up);
+});
+
+// Physische Pixelgröße der Bühne — der Renderer schreibt sie vor dem
+// Replay-Start als Spielauflösung in die game.cfg.
+ipcMain.handle("stage-size", () => {
+  if (!studio || studio.isDestroyed()) return null;
+  const cb = studio.getContentBounds();
+  const stage = stageRect();
+  const phys = screen.dipToScreenRect(studio, {
+    x: cb.x + stage.x, y: cb.y + stage.y,
+    width: stage.width, height: stage.height,
+  });
+  return { width: phys.width, height: phys.height };
 });
 
 // Gameflow-Phase des League-Clients (vom Studio-Renderer gemeldet). Steht
