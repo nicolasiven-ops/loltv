@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>LoLTV Overlay</title>
+<style>
+  /* Transparenter Grund — das Spiel scheint durch. */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; background: transparent; overflow: hidden; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    color: #e8eaf0;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+  /* Mock-Vorschau (?mock=1): dunkler Kluft-artiger Hintergrund statt Spiel. */
+  body.mock {
+    background:
+      radial-gradient(1200px 700px at 30% 20%, #12321f 0%, transparent 60%),
+      radial-gradient(1000px 600px at 75% 75%, #0e2035 0%, transparent 60%),
+      #0a0f14;
+  }
+
+  .hidden { display: none !important; }
+
+  :root {
+    --blue: #2f7dd1;
+    --blue-bright: #55a7ff;
+    --red: #d64545;
+    --red-bright: #ff7a6e;
+    --panel: rgba(8, 10, 16, 0.86);
+    --panel-line: rgba(255, 255, 255, 0.09);
+    --gold: #c8a45c;
+    --dim: #9aa3b2;
+  }
+
+  /* ---------- Status-Chip (nicht verbunden) ---------- */
+  #status {
+    position: fixed; top: 14px; left: 14px;
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-left: 3px solid var(--gold);
+    padding: 8px 14px; border-radius: 4px;
+    font-size: 13px; letter-spacing: 0.4px;
+  }
+
+  /* ---------- Score-Bar oben Mitte ---------- */
+  #scorebar {
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: stretch;
+    background: var(--panel);
+    border: 1px solid var(--panel-line); border-top: none;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  }
+  .sb-side {
+    display: flex; align-items: center; gap: 14px;
+    padding: 8px 18px;
+  }
+  .sb-side.blue { flex-direction: row-reverse; border-bottom: 3px solid var(--blue); border-radius: 0 0 0 8px; }
+  .sb-side.red  { border-bottom: 3px solid var(--red); border-radius: 0 0 8px 0; }
+  .sb-kills { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .blue .sb-kills { color: var(--blue-bright); }
+  .red  .sb-kills { color: var(--red-bright); }
+  .sb-objs { display: flex; gap: 12px; }
+  .sb-obj { display: flex; align-items: center; gap: 5px; font-size: 15px; font-weight: 600; color: #cfd6e2; font-variant-numeric: tabular-nums; }
+  .sb-obj svg { width: 15px; height: 15px; fill: var(--dim); }
+  .drakes { display: flex; gap: 4px; align-items: center; }
+  .drake { width: 9px; height: 9px; transform: rotate(45deg); border-radius: 2px; }
+
+  #clockbox {
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    padding: 6px 20px; min-width: 110px;
+    border-left: 1px solid var(--panel-line);
+    border-right: 1px solid var(--panel-line);
+  }
+  #clock { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  #clock-label { font-size: 9px; letter-spacing: 2.5px; color: var(--gold); font-weight: 600; }
+
+  /* ---------- Team-Spalten links/rechts ---------- */
+  .teamcol {
+    position: fixed; top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  #team-blue { left: 0; }
+  #team-red  { right: 0; }
+
+  .player {
+    display: flex; align-items: center; gap: 10px;
+    width: 272px; padding: 7px 10px;
+    background: var(--panel);
+    border-top: 1px solid var(--panel-line);
+    border-bottom: 1px solid var(--panel-line);
+  }
+  #team-blue .player { border-left: 3px solid var(--blue); border-radius: 0 6px 6px 0; border-right: 1px solid var(--panel-line); }
+  #team-red  .player { flex-direction: row-reverse; text-align: right; border-right: 3px solid var(--red); border-radius: 6px 0 0 6px; border-left: 1px solid var(--panel-line); }
+
+  .portrait-wrap { position: relative; flex-shrink: 0; }
+  .portrait {
+    width: 46px; height: 46px; border-radius: 4px;
+    background: linear-gradient(135deg, #2a3242, #171c26);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; color: #6b7686;
+    overflow: hidden;
+  }
+  .portrait img { width: 100%; height: 100%; object-fit: cover; }
+  .player.dead .portrait { filter: grayscale(1) brightness(0.5); }
+  .respawn {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 700; color: #ff9d94;
+    text-shadow: 0 1px 3px #000;
+  }
+  .level {
+    position: absolute; bottom: -4px; left: -4px;
+    background: #10141c; border: 1px solid var(--gold); color: var(--gold);
+    font-size: 10px; font-weight: 700;
+    min-width: 17px; height: 17px; border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 2px;
+  }
+  #team-red .level { left: auto; right: -4px; }
+
+  .pbody { flex: 1; min-width: 0; }
+  .pname {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.3px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pchamp { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.8px; }
+  .pstats { display: flex; gap: 8px; margin-top: 3px; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #team-red .pstats { justify-content: flex-end; }
+  .kda { font-weight: 700; }
+  .kda .d { color: var(--red-bright); }
+  .cs { color: var(--gold); }
+
+  .items { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+  .items .row { display: flex; gap: 3px; }
+  .item {
+    width: 18px; height: 18px; border-radius: 3px;
+    background: #1b202b; border: 1px solid rgba(255, 255, 255, 0.07);
+    overflow: hidden;
+  }
+  .item img { width: 100%; height: 100%; }
+
+  /* ---------- Branding unten ---------- */
+  #brand {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    font-size: 10px; letter-spacing: 3px; color: rgba(255, 255, 255, 0.28);
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+  <div id="status">LoLTV Overlay — warte auf Replay-Client …</div>
+
+  <div id="scorebar" class="hidden">
+    <div class="sb-side blue">
+      <div class="sb-kills" id="kills-blue">0</div>
+      <div class="sb-objs">
+        <div class="sb-obj" title="Türme"><svg viewBox="0 0 16 16"><path d="M4 15V7L3 6V3h2v1h2V3h2v1h2V3h2v3l-1 1v8z"/></svg><span id="towers-blue">0</span></div>
+        <div class="sb-obj" title="Barone"><svg viewBox="0 0 16 16"><path d="M8 1l2 3 3-1-1 4 2 2-3 1v3l-3-1-3 1v-3L2 9l2-2-1-4 3 1z"/></svg><span id="barons-blue">0</span></div>
+        <div class="drakes" id="drakes-blue"></div>
+      </div>
+    </div>
+    <div id="clockbox">
+      <div id="clock">0:00</div>
+      <div id="clock-label">LOLTV</div>
+    </div>
+    <div class="sb-side red">
+      <div class="sb-kills" id="kills-red">0</div>
+      <div class="sb-objs">
+        <div class="sb-obj" title="Türme"><svg viewBox="0 0 16 16"><path d="M4 15V7L3 6V3h2v1h2V3h2v1h2V3h2v3l-1 1v8z"/></svg><span id="towers-red">0</span></div>
+        <div class="sb-obj" title="Barone"><svg viewBox="0 0 16 16"><path d="M8 1l2 3 3-1-1 4 2 2-3 1v3l-3-1-3 1v-3L2 9l2-2-1-4 3 1z"/></svg><span id="barons-red">0</span></div>
+        <div class="drakes" id="drakes-red"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="team-blue" class="teamcol hidden"></div>
+  <div id="team-red" class="teamcol hidden"></div>
+
+  <div id="brand" class="hidden">LOLTV</div>
+
+  <script src="overlay.js"></script>
+</body>
+</html>

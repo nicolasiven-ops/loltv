@@ -39,6 +39,32 @@ hängt (Referenz für spätere tiefere Kamera-/Rendering-Kontrolle).
    Das Panel wartet, bis der Replay-Client läuft, und verbindet sich
    automatisch. „✨ Esports-Look“ klicken — fertig.
 
+## Broadcast-Overlay (eigenes HUD im Pro-Look)
+
+Wem die eingebaute Spectator-Optik nicht reicht: `overlay/` enthält ein
+**transparentes HTML-Overlay** (Electron), das sich über das Spielfenster
+legt, das native HUD per Replay-API ausblendet und stattdessen eigene
+Broadcast-Grafiken zeichnet — Score-Bar mit Timer, Kills, Türmen, Baronen
+und Drachen-Souls sowie Team-Frames beider Seiten mit Portrait, Level, KDA,
+CS, Items und Respawn-Timern. Da alles HTML/CSS ist, lässt sich die Optik
+frei umbauen. Die Daten kommen von der Live-Client-Data-API
+(`/liveclientdata/allgamedata`, Port 2999 — läuft auch im Replay);
+Champion-/Item-Bilder von Riots Data Dragon CDN.
+
+**Voraussetzungen:** [Node.js LTS](https://nodejs.org/de) installiert; das
+Spiel läuft im Fenstermodus **„Randlos“** (Einstellungen → Grafik), damit das
+Overlay darüber liegen kann.
+
+    cd overlay
+    npm install    # einmalig
+    npm start      # Overlay starten (wartet aufs Replay)
+
+Hotkeys: `Strg+F12` Overlay ein-/ausblenden, `Strg+Alt+F12` beenden. Das
+Overlay ist klickdurchlässig — Maus und Tastatur gehen ganz normal ans Spiel.
+
+**Design-Vorschau ohne laufendes Spiel:** `overlay/overlay.html?mock=1` im
+Browser öffnen (zeigt Beispieldaten).
+
 ## Bekannte Constraints (wichtig fürs Gesamtkonzept)
 
 - **Patch-Bindung:** `.rofl`-Replays laufen nur auf dem Patch, auf dem sie
