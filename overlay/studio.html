@@ -43,20 +43,82 @@
   #winbtns button:hover { background: rgba(255, 255, 255, 0.07); color: var(--text); }
   #btn-close:hover { background: #c0392b !important; color: #fff !important; }
 
-  /* ---------- Bühne (hier liegt das eingebettete Spielfenster) ---------- */
+  /* ---------- Bühne (hier liegt das angedockte Spielfenster) ---------- */
   #stage {
-    flex: 1; position: relative;
+    flex: 1; position: relative; min-height: 0;
     display: flex; align-items: center; justify-content: center;
     background:
       radial-gradient(700px 420px at 50% 42%, #101826 0%, transparent 70%),
       var(--bg);
   }
-  #stage-hint { text-align: center; }
-  #stage-hint .mark {
-    font-size: 34px; font-weight: 800; letter-spacing: 12px; color: rgba(200, 164, 92, 0.5);
-    margin-bottom: 14px;
+
+  /* ---------- Startansicht: Spielersuche + Match-Liste ---------- */
+  #searchview {
+    display: flex; flex-direction: column; align-items: center;
+    width: min(680px, 92%); max-height: 100%; padding: 24px 0;
   }
-  #stage-hint .msg { font-size: 14px; color: var(--dim); line-height: 1.7; }
+  #searchview .mark {
+    font-size: 34px; font-weight: 800; letter-spacing: 12px; color: rgba(200, 164, 92, 0.5);
+  }
+  #lcu-status { margin-top: 6px; font-size: 12px; color: var(--dim); }
+
+  #searchbox { display: flex; gap: 8px; margin-top: 22px; width: 100%; }
+  #riot-id {
+    flex: 1; padding: 11px 14px; font-size: 15px; font-family: inherit;
+    background: var(--bar); color: var(--text);
+    border: 1px solid var(--line); border-radius: 6px; outline: none;
+  }
+  #riot-id:focus { border-color: var(--gold); }
+  #btn-search {
+    padding: 11px 22px; font-size: 14px; font-weight: 600; font-family: inherit;
+    background: var(--gold); color: #14100a;
+    border: none; border-radius: 6px; cursor: pointer;
+  }
+  #btn-search:hover { filter: brightness(1.1); }
+  #btn-search:disabled { opacity: 0.5; cursor: default; }
+
+  #search-status { margin-top: 14px; font-size: 13px; color: var(--dim); min-height: 18px; text-align: center; }
+  #search-status.error { color: #ff8d84; }
+
+  #results {
+    margin-top: 12px; width: 100%; overflow-y: auto; min-height: 0;
+    display: flex; flex-direction: column; gap: 6px; padding-right: 4px;
+  }
+  #results::-webkit-scrollbar { width: 8px; }
+  #results::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+
+  .match {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 12px; border-radius: 6px;
+    background: var(--bar); border: 1px solid var(--line);
+  }
+  .match.win  { border-left: 3px solid #3f9c5c; }
+  .match.loss { border-left: 3px solid #c05050; }
+  .match.dud { opacity: 0.45; }
+
+  .m-champ {
+    width: 40px; height: 40px; border-radius: 4px; flex-shrink: 0;
+    background: linear-gradient(135deg, #2a3242, #171c26); overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; color: #6b7686;
+  }
+  .m-champ img { width: 100%; height: 100%; object-fit: cover; }
+  .m-main { flex: 1; min-width: 0; }
+  .m-line1 { font-size: 13px; font-weight: 700; }
+  .m-line1 .lose { color: #ff8d84; } .m-line1 .win { color: #6fd08c; }
+  .m-line2 { font-size: 11px; color: var(--dim); margin-top: 2px; }
+  .m-kda { font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .m-kda .d { color: #ff8d84; }
+  .m-patch { font-size: 10px; color: var(--dim); white-space: nowrap; }
+
+  .m-play {
+    padding: 8px 14px; font-size: 12px; font-weight: 700; font-family: inherit;
+    background: transparent; color: var(--gold);
+    border: 1px solid var(--gold); border-radius: 5px; cursor: pointer; white-space: nowrap;
+  }
+  .m-play:hover { background: var(--gold); color: #14100a; }
+  .m-play:disabled { opacity: 0.4; cursor: default; }
+  .m-play:disabled:hover { background: transparent; color: var(--gold); }
 
   /* ---------- Playback-Leiste ---------- */
   #bottombar {
@@ -109,12 +171,15 @@
   </div>
 
   <div id="stage">
-    <div id="stage-hint">
+    <div id="searchview">
       <div class="mark">LOLTV</div>
-      <div class="msg">
-        Replay im League-Client starten —<br>
-        das Spielfenster wird automatisch hier eingebettet.
+      <div id="lcu-status">League-Client: suche …</div>
+      <div id="searchbox">
+        <input id="riot-id" placeholder="Riot-ID eingeben, z. B. Agurin#EUW" spellcheck="false">
+        <button id="btn-search">Suchen</button>
       </div>
+      <div id="search-status"></div>
+      <div id="results"></div>
     </div>
   </div>
 

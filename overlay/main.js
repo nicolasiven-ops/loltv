@@ -30,6 +30,10 @@ const FULLSCREEN_MODE = process.argv.includes("--fullscreen-overlay");
 let studio = null;
 let hud = null;
 let gameHwnd = 0n;
+// Wird vom Studio-Renderer gemeldet (IPC "replay-api"): antwortet die
+// Replay-API auf Port 2999? Nur dann ist das Spielfenster ein Replay —
+// ein Live-Game (gleicher Fenstertitel!) darf nie angedockt werden.
+let replayApiUp = false;
 
 // ---------------------------------------------------------------- Studio
 
@@ -70,7 +74,7 @@ function embedTick() {
     gameHwnd = 0n;
     sendStatus();
   }
-  if (!gameHwnd) {
+  if (!gameHwnd && replayApiUp) {
     const found = embed.findGame();
     if (found) {
       const host = studio.getNativeWindowHandle().readBigUInt64LE(0);
@@ -158,6 +162,10 @@ function createFullscreenOverlay() {
 }
 
 // ------------------------------------------------------------------ App
+
+ipcMain.on("replay-api", (_ev, up) => {
+  replayApiUp = Boolean(up);
+});
 
 ipcMain.on("win-control", (_ev, action) => {
   if (!studio) return;

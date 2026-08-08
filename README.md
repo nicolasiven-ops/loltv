@@ -84,15 +84,28 @@ Browser öffnen (zeigt Beispieldaten).
   ([Game Client API → Replay API](https://developer.riotgames.com/docs/lol#game-client-api_replay-api))
   und rein lesend/steuernd am eigenen Client — kein Eingriff ins Spiel.
 
+## Spielersuche & Match-Liste (LCU)
+
+Das Studio ist gleichzeitig das Frontend: Solange kein Replay läuft, zeigt
+die Bühne eine **Spielersuche**. Riot-ID eingeben (`Name#TAG`) → LoLTV holt
+den Account und die letzten 20 Spiele über die **LCU-API** des im
+Hintergrund laufenden League-Clients (eingeloggt, darf minimiert sein —
+kein Riot-API-Key nötig). Jede Zeile zeigt Champion, Sieg/Niederlage,
+Queue, Datum, KDA/CS und Patch; **„▶ Ansehen“** lädt das Replay über den
+Client herunter und startet es — das Fenster dockt dann automatisch an.
+Spiele von älteren Patches sind ausgegraut (Patch-Bindung, s. u.). Die
+Suche findet Spieler der eigenen Region.
+
+Während du **selbst spielst**, kann kein Replay laufen (eine Spielinstanz,
+Port 2999 ist belegt) — LoLTV erkennt ein Live-Game und dockt es nie an.
+
 ## Roadmap
 
-1. ✅ **Baseline:** Overlay des laufenden Replays steuern (dieses Panel).
-2. ⬜ **Spielersuche:** Riot-ID eingeben → Account/Matches über die Riot-API.
-3. ⬜ **Match-Liste:** Spiele mit Champion, KDA, Ergebnis; Replay-Download
-   über den League-Client anstoßen (LCU-API — der `lcu.py`-Helper aus
-   [pc-tools/lol-autopick](https://github.com/nicolasiven-ops/pc-tools/tree/main/lol-autopick)
-   lässt sich dafür übernehmen).
-4. ⬜ **Abspiel-Frontend:** Match anklicken → Replay startet automatisch im
-   gewünschten Look (Panel-Preset direkt beim Start anwenden).
+1. ✅ **Baseline:** Overlay des laufenden Replays steuern.
+2. ✅ **Spielersuche:** Riot-ID eingeben → Account/Matches über die LCU-API.
+3. ✅ **Match-Liste:** Spiele mit Champion, KDA, Ergebnis, Patch-Check.
+4. ✅ **Abspiel-Frontend:** Match anklicken → Download + Start + Andocken.
 5. ⬜ **Kamera-Regie:** Auto-Kamera/Regie-Funktionen (Kampf-Fokus, Fahrten) —
    hier lohnt der Blick in LeagueDirectorNG.
+6. ⬜ **Feinschliff:** Kill-Feed über die Live-Events-API, Item-Darstellung,
+   Regionen-übergreifende Suche (Riot-API mit Key).
